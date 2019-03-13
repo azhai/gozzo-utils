@@ -1,0 +1,14 @@
+.*
+*/*.so
+*/*.so.*
+*.bak
+*.exe
+*.log
+*.sublime-project
+*.sublime-workspace
+*.tmp
+*.txt
+*.upx
+*.vscode
+temp/
+tests/
