@@ -5,9 +5,21 @@
 ```go
 package main
 import (
+    "math"
+    "time"
     "github.com/azhai/gozzo-utils/common"
     "github.com/azhai/gozzo-utils/logging"
 )
+
+// 计算年龄
+func CalcAge(birthday string) int {
+    birth, err := time.Parse("2006-01-02", birthday)
+    if err != nil {
+        return -1
+    }
+    hours := time.Since(birth).Hours()
+    return int(math.Round(hours / 365 / 24))
+}
 
 func main() {
     birthday := "1996-02-29"

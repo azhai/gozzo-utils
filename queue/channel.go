@@ -46,12 +46,12 @@ func (c *Channel) Recover() error {
 	return c.LastError
 }
 
-func (c *Channel) InitExchange(exchName, exchType string) error {
+func (c *Channel) InitExchange(exchName, exchType string, durable bool) error {
 	defer c.Recover()
 	return c.ExchangeDeclare(
 		exchName, // name
 		exchType, // type
-		true,     // durable
+		durable,  // durable
 		false,    // auto-deleted
 		false,    // internal
 		false,    // no-wait
@@ -86,15 +86,16 @@ func (c *Channel) InitRoute(exchName, rtKey, queName string) error {
 func (c *Channel) InitBinds(exchName, exchType string, keys, ques []string) []error {
 	// 忽略和已有定义不匹配的错误
 	var (
-		key  string
-		err  error
-		errs []error
+		key     string
+		err     error
+		errs    []error
+		durable = false // 性能较好
 	)
-	if err = c.InitExchange(exchName, exchType); err != nil {
+	if err = c.InitExchange(exchName, exchType, durable); err != nil {
 		errs = append(errs, err)
 	}
 	for i := 0; i < len(ques); i++ {
-		if err = c.InitQueue(ques[i], true); err != nil {
+		if err = c.InitQueue(ques[i], durable); err != nil {
 			errs = append(errs, err)
 		}
 		key = ""
