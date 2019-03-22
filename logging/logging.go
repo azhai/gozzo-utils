@@ -9,6 +9,8 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+type Logger = zap.SugaredLogger
+
 // 日志等级
 var LogLevels = map[string]zapcore.Level{
 	"debug":     zapcore.DebugLevel,
@@ -46,13 +48,13 @@ func CustomEncoderConfig(layout string) zapcore.EncoderConfig {
 	return ecfg
 }
 
-func NewLogger(level, errput string, outputs ...string) *zap.SugaredLogger {
+func NewLogger(level, errput string, outputs ...string) *Logger {
 	cfg := NewConfig(errput, outputs...)
 	cfg.SetLevelName(level)
 	return cfg.BuildSugar()
 }
 
-func NewDevLogger(errput string, outputs ...string) *zap.SugaredLogger {
+func NewDevLogger(errput string, outputs ...string) *Logger {
 	cfg := NewConfig(errput, outputs...)
 	cfg.SetDevMode(true)
 	cfg.SetLevelName("debug")
@@ -96,7 +98,7 @@ func (c *LogConfig) SetTimeFormat(layout string) {
 	}
 }
 
-func (c *LogConfig) BuildSugar() *zap.SugaredLogger {
+func (c *LogConfig) BuildSugar() *Logger {
 	if logger, err := c.Build(); err == nil {
 		return logger.Sugar()
 	}

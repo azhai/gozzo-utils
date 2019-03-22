@@ -1,14 +1,14 @@
 module github.com/azhai/gozzo-utils
 
 replace (
-	golang.org/x/crypto => github.com/golang/crypto v0.0.0-20190313024323-a1f597ede03a
-	golang.org/x/exp => github.com/golang/exp v0.0.0-20190312203227-4b39c73a6495
-	golang.org/x/image => github.com/golang/image v0.0.0-20190227222117-0694c2d4d067
-	golang.org/x/net => github.com/golang/net v0.0.0-20190311183353-d8887717615a
+	golang.org/x/crypto => github.com/golang/crypto v0.0.0-20190320223903-b7391e95e576
+	golang.org/x/exp => github.com/golang/exp v0.0.0-20190316020145-860388717186
+	golang.org/x/image => github.com/golang/image v0.0.0-20190321063152-3fc05d484e9f
+	golang.org/x/net => github.com/golang/net v0.0.0-20190320064053-1272bf9dcd53
 	golang.org/x/sync => github.com/golang/sync v0.0.0-20190227155943-e225da77a7e6
-	golang.org/x/sys => github.com/golang/sys v0.0.0-20190312061237-fead79001313
+	golang.org/x/sys => github.com/golang/sys v0.0.0-20190321052220-f7bb7a8bee54
 	golang.org/x/text => github.com/golang/text v0.3.0
-	golang.org/x/tools => github.com/golang/tools v0.0.0-20190312170243-e65039ee4138
+	golang.org/x/tools => github.com/golang/tools v0.0.0-20190320215829-36c10c0a621f
 )
 
 require (

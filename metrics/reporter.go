@@ -12,7 +12,7 @@ type Reporter interface {
 	IncrCount(name string, offset int64) int64
 }
 
-//内部计数
+// 暂存多项计数器
 type DummyReporter struct {
 	names    []string
 	counters map[string]*int64
@@ -24,8 +24,7 @@ func NewDummyReporter(names []string) *DummyReporter {
 		counters: make(map[string]*int64),
 	}
 	for _, name := range r.names {
-		value := int64(0)
-		r.counters[name] = &value
+		r.counters[name] = new(int64)
 	}
 	return r
 }
@@ -47,9 +46,9 @@ func (r *DummyReporter) GetCount(name string) int64 {
 	return 0
 }
 
-func (r *DummyReporter) IncrCount(name string, offset int64) int64 {
+func (r *DummyReporter) IncrCount(name string, delta int64) int64 {
 	if value, ok := r.counters[name]; ok {
-		return atomic.AddInt64(value, offset)
+		return atomic.AddInt64(value, delta)
 	}
 	return 0
 }
