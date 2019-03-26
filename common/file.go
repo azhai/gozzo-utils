@@ -2,6 +2,7 @@ package common
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -11,6 +12,26 @@ const (
 	FILE_MODE = 0666
 	DIR_MODE  = 0777
 )
+
+// detect if file exists
+// -1, false 不合法的路径
+// 0, false 路径不存在
+// -1, true 存在文件夹
+// >=0, true 文件并存在
+func FileSize(path string) (int64, bool) {
+	if path == "" {
+		return -1, false
+	}
+	info, err := os.Stat(path)
+	if err != nil && os.IsNotExist(err) {
+		return 0, false
+	}
+	var size = int64(-1)
+	if info.IsDir() == false {
+		size = info.Size()
+	}
+	return size, true
+}
 
 func CreateFile(path string, mode os.FileMode) (fp *os.File, err error) {
 	// create dirs if file not exists
@@ -27,20 +48,18 @@ func CreateFile(path string, mode os.FileMode) (fp *os.File, err error) {
 }
 
 func OpenFile(path string) (fp *os.File, size int64, err error) {
-	var info os.FileInfo
-	// detect if file exists
-	info, err = os.Stat(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			fp, err = CreateFile(path, FILE_MODE)
-		}
+	var exists bool
+	size, exists = FileSize(path)
+	if size < 0 {
+		err = fmt.Errorf("Path is directory or illegal")
 		return
 	}
-	size = info.Size()
-	if size > 0 {
-		fp, err = os.Open(path) // 打开方式为 os.O_RDONLY
-	} else {
+	if exists == false {
+		fp, err = CreateFile(path, FILE_MODE)
+	} else if size == 0 {
 		fp, err = os.OpenFile(path, os.O_RDWR, FILE_MODE)
+	} else {
+		fp, err = os.Open(path) // 打开方式为 os.O_RDONLY
 	}
 	return
 }
