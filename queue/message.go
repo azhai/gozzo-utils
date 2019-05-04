@@ -18,8 +18,6 @@ func NewHeaders(protoId int) amqp.Table {
 		"SessId":     "",
 		"CmdId":      "",       // 非必需
 		"MsgId":      int16(0), // 非必需
-		"LanAddr":    "",
-		"WanAddr":    "",
 		"RecvTime":   int64(0),
 		"Type":       int16(0), // 普通/登录/退出/回应
 		"Flags":      int16(0),
@@ -35,8 +33,6 @@ type Message struct {
 
 func NewMessage(body []byte) *Message {
 	var headers = NewHeaders(0)
-	headers["LanAddr"] = "192.168.2.108:9876"
-	headers["WanAddr"] = "183.62.157.202:9876"
 	return &Message{Headers: headers, Body: body}
 }
 

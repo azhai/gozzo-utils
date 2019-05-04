@@ -27,23 +27,18 @@ type MessageQueue struct {
 	input    chan *Message
 	output   <-chan amqp.Delivery
 	QueName  string
-	ExchName string
-	Routings []string
 }
 
-func NewMessageQueue(queue, exchange string) *MessageQueue {
+func NewMessageQueue(queue string) *MessageQueue {
 	return &MessageQueue{
 		input:    make(chan *Message),
 		QueName:  queue,
-		ExchName: exchange,
 	}
 }
 
-func (mq *MessageQueue) AddRoutings(key, dst string, count int) []string {
-	var (
-		routing, target string
-		queNames        []string
-	)
+func (mq *MessageQueue) AddRoutings(key, dst string, count int) map[string]string {
+	var routing, target string
+	routingMap := make(map[string]string)
 	for i := 0; i < count; i++ {
 		if count <= 1 {
 			routing = key
@@ -52,31 +47,24 @@ func (mq *MessageQueue) AddRoutings(key, dst string, count int) []string {
 			routing = fmt.Sprintf(key, i)
 			target = fmt.Sprintf(dst, i)
 		}
-		queNames = append(queNames, target)
-		mq.Routings = append(mq.Routings, routing)
+		routingMap[target] = routing
 	}
-	return queNames
+	return routingMap
 }
 
 func (mq *MessageQueue) AddMessage(msg *Message) {
 	mq.input <- msg
 }
 
-func (mq *MessageQueue) AddIndexMessage(msg *Message, index int) {
-	if index >= 0 {
-		msg.Routing = mq.Routings[index]
-	}
-	mq.AddMessage(msg)
-}
-
-func (mq *MessageQueue) AddData(body []byte, headers amqp.Table, index int) {
+func (mq *MessageQueue) AddData(body []byte, headers amqp.Table, routing string) {
 	msg := NewMessage(body)
 	if headers != nil {
 		for key, value := range headers {
 			msg.Headers[key] = value
 		}
 	}
-	mq.AddIndexMessage(msg, index)
+	msg.Routing = routing
+	mq.AddMessage(msg)
 }
 
 func (mq *MessageQueue) PublishAll(ch *Channel, retries int) {
@@ -91,7 +79,7 @@ func (mq *MessageQueue) PublishAll(ch *Channel, retries int) {
 			if err == nil || isVe {
 				msg = <-mq.input
 			}
-			err = ch.PushMessage(mq.ExchName, msg.Routing, msg)
+			err = ch.PushMessage(msg.Routing, msg)
 			if err == nil {
 				continue
 			}
@@ -163,7 +151,7 @@ func (mq *MessageQueue) RunAll(ch *Channel, receive RecvFunc, retries int) {
 					go receive(msg)
 				}
 			case msg := <-mq.input:
-				err := ch.PushMessage(mq.ExchName, msg.Routing, msg)
+				err := ch.PushMessage(msg.Routing, msg)
 				if err != nil && !IsValidateError(err) {
 					ctag, err = mq.Prepare(ch, ctag, retries)
 				}

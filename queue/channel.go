@@ -3,8 +3,9 @@ package queue
 import "github.com/streadway/amqp"
 
 type Channel struct {
-	ServerUrl string
-	LastError error
+	ServerUrl    string
+	LastExchName string
+	LastError    error
 	*amqp.Connection
 	*amqp.Channel
 }
@@ -46,19 +47,6 @@ func (c *Channel) Recover() error {
 	return c.LastError
 }
 
-func (c *Channel) InitExchange(exchName, exchType string, durable bool) error {
-	defer c.Recover()
-	return c.ExchangeDeclare(
-		exchName, // name
-		exchType, // type
-		durable,  // durable
-		false,    // auto-deleted
-		false,    // internal
-		false,    // no-wait
-		nil,      // args
-	)
-}
-
 func (c *Channel) InitQueue(queName string, durable bool) error {
 	defer c.Recover()
 	_, err := c.QueueDeclare(
@@ -83,30 +71,28 @@ func (c *Channel) InitRoute(exchName, rtKey, queName string) error {
 	)
 }
 
-func (c *Channel) InitBinds(exchName, exchType string, keys, ques []string) []error {
-	// 忽略和已有定义不匹配的错误
-	var (
-		key     string
-		err     error
-		errs    []error
-		durable = false // 性能较好
+func (c *Channel) InitExchange(exchName, exchType string, durable bool) error {
+	defer c.Recover()
+	c.LastExchName = exchName
+	return c.ExchangeDeclare(
+		exchName, // name
+		exchType, // type
+		durable,  // durable
+		false,    // auto-deleted
+		false,    // internal
+		false,    // no-wait
+		nil,      // args
 	)
-	if err = c.InitExchange(exchName, exchType, durable); err != nil {
-		errs = append(errs, err)
+}
+
+func (c *Channel) InitBinds(routingMap map[string]string, durable bool) error {
+	// 忽略和已有定义不匹配的错误
+	var err error
+	for queName, routing := range routingMap {
+		err = c.InitQueue(queName, durable)
+		err = c.InitRoute(c.LastExchName, routing, queName)
 	}
-	for i := 0; i < len(ques); i++ {
-		if err = c.InitQueue(ques[i], durable); err != nil {
-			errs = append(errs, err)
-		}
-		key = ""
-		if i < len(keys) {
-			key = keys[i]
-		}
-		if err = c.InitRoute(exchName, key, ques[i]); err != nil {
-			errs = append(errs, err)
-		}
-	}
-	return errs
+	return err
 }
 
 func (c *Channel) Redirect(src, rtKey, dst string) error {
@@ -153,9 +139,9 @@ func (c *Channel) SetConfirm(confirm chan amqp.Confirmation) error {
 	}
 }
 
-func (c *Channel) PushMessage(exchName, key string, msg *Message) error {
+func (c *Channel) PushMessage(key string, msg *Message) error {
 	return c.Publish(
-		exchName, // publish to an exchange
+		c.LastExchName, // publish to an exchange
 		key,      // routing to 0 or more queues
 		false,    // mandatory
 		false,    // immediate

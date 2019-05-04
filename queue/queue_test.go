@@ -52,12 +52,13 @@ func TestCreate(t *testing.T) {
 	if err := ch.InitQueue(queName, false); err != nil {
 		t.Fatal(err)
 	}
-	keys := []string{prefix + "0", prefix + "1"}
-	targets := []string{prefix + "0", prefix + "1"}
-	err := ch.InitBinds("test.direct", "direct", keys, targets)
+	routingMap := make(map[string]string)
+	routingMap[prefix + "0"] = prefix + "0"
+	routingMap[prefix + "1"] = prefix + "1"
+	err := ch.InitBinds(routingMap, true)
 	if err != nil {
 		t.Fatal(err)
-		t.Log(keys)
+		t.Log(routingMap)
 	}
 }
 
@@ -70,11 +71,12 @@ func TestPublish(t *testing.T) {
 	}
 	sec := time.Now().Second()
 	msg := CreateMessage(sec)
-	ch.PushMessage("test.direct", msg.Routing, msg)
+	ch.InitExchange("test.direct", "direct", false)
+	ch.PushMessage(msg.Routing, msg)
 	msg = CreateMessage(sec + 1)
-	ch.PushMessage("test.direct", msg.Routing, msg)
+	ch.PushMessage(msg.Routing, msg)
 	msg = CreateMessage(sec + 2)
-	ch.PushMessage("test.direct", msg.Routing, msg)
+	ch.PushMessage(msg.Routing, msg)
 }
 
 func BenchmarkPublish1(b *testing.B) {
@@ -85,10 +87,11 @@ func BenchmarkPublish1(b *testing.B) {
 		b.Fatal(ch.LastError)
 	}
 	fmt.Println("test.direct", prefix)
+	ch.InitExchange("test.direct", "direct", false)
 	for i := 0; i < b.N; i++ {
 		idx := i % 1000
 		msg := messages[idx]
-		ch.PushMessage("test.direct", msg.Routing, msg)
+		ch.PushMessage(msg.Routing, msg)
 	}
 }
 
@@ -99,8 +102,8 @@ func BenchmarkPublish2(b *testing.B) {
 		b.Fatal(ch.LastError)
 	}
 	mq := NewMessageQueue(queName, "test.direct")
-	targets := mq.AddRoutings(prefix+"%d", prefix+"%d", 3)
-	ch.InitBinds("test.direct", "direct", mq.Routings, targets)
+	routingMap := mq.AddRoutings(prefix+"%d", prefix+"%d", 3)
+	ch.InitBinds(routingMap, true)
 	mq.PublishAll(ch, -1)
 	fmt.Println(queName)
 	for i := 0; i < b.N; i += 2 {
