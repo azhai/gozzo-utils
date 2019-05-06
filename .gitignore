@@ -10,5 +10,4 @@
 *.txt
 *.upx
 *.vscode
-temp/
 tests/
