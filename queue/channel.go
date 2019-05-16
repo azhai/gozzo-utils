@@ -3,10 +3,9 @@ package queue
 import "github.com/streadway/amqp"
 
 type Channel struct {
-	ServerUrl    string
-	LastExchName string
-	LastError    error
-	*amqp.Connection
+	ServerUrl string
+	LastError error
+	conn *amqp.Connection
 	*amqp.Channel
 }
 
@@ -20,16 +19,16 @@ func NewChannel(url string) *Channel {
 }
 
 func (c *Channel) Reconnect(force bool) (err error) {
-	if force || c.Connection == nil {
+	if force || c.conn == nil {
 		c.Close()
-		c.Connection, err = amqp.Dial(c.ServerUrl)
+		c.conn, err = amqp.Dial(c.ServerUrl)
 	}
-	c.Channel, err = c.Connection.Channel()
+	c.Channel, err = c.conn.Channel()
 	return
 }
 
 func (c *Channel) Close() error {
-	if c.Connection == nil {
+	if c.conn == nil {
 		return nil
 	}
 	if c.Channel != nil {
@@ -37,7 +36,7 @@ func (c *Channel) Close() error {
 			return err
 		}
 	}
-	return c.Connection.Close()
+	return c.conn.Close()
 }
 
 func (c *Channel) Recover() error {
@@ -73,7 +72,6 @@ func (c *Channel) InitRoute(exchName, rtKey, queName string) error {
 
 func (c *Channel) InitExchange(exchName, exchType string, durable bool) error {
 	defer c.Recover()
-	c.LastExchName = exchName
 	return c.ExchangeDeclare(
 		exchName, // name
 		exchType, // type
@@ -85,12 +83,12 @@ func (c *Channel) InitExchange(exchName, exchType string, durable bool) error {
 	)
 }
 
-func (c *Channel) InitBinds(routingMap map[string]string, durable bool) error {
+func (c *Channel) InitBinds(exchName string, routingMap map[string]string, durable bool) error {
 	// 忽略和已有定义不匹配的错误
 	var err error
 	for queName, routing := range routingMap {
 		err = c.InitQueue(queName, durable)
-		err = c.InitRoute(c.LastExchName, routing, queName)
+		err = c.InitRoute(exchName, routing, queName)
 	}
 	return err
 }
@@ -139,9 +137,9 @@ func (c *Channel) SetConfirm(confirm chan amqp.Confirmation) error {
 	}
 }
 
-func (c *Channel) PushMessage(key string, msg *Message) error {
+func (c *Channel) PushMessage(exchName, key string, msg *Message) error {
 	return c.Publish(
-		c.LastExchName, // publish to an exchange
+		exchName, // publish to an exchange
 		key,      // routing to 0 or more queues
 		false,    // mandatory
 		false,    // immediate

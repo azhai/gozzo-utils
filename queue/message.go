@@ -28,7 +28,6 @@ func NewHeaders(protoId int) amqp.Table {
 type Message struct {
 	Body    []byte
 	Headers amqp.Table
-	Routing string
 }
 
 func NewMessage(body []byte) *Message {
