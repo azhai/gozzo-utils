@@ -5,7 +5,7 @@ import "github.com/streadway/amqp"
 type Channel struct {
 	ServerUrl string
 	LastError error
-	conn *amqp.Connection
+	conn      *amqp.Connection
 	*amqp.Channel
 }
 

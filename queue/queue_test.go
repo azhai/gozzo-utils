@@ -13,7 +13,7 @@ import (
 var (
 	bodyTpl  = "7E00020000014530399195%04d0A7E"
 	amqpUrl  = "amqp://guest:guest@127.0.0.1:5672"
-	exchName  = "amq.topic"
+	exchName = "amq.topic"
 	queName  = "TestQueue"
 	prefix   = "TestRouting"
 	messages = make([]*Envelope, 1000)
@@ -27,7 +27,7 @@ func CreateEnvelope(tid int) *Envelope {
 		routing = prefix + "1"
 	}
 	return &Envelope{
-		Exchange: exchName,
+		Exchange:   exchName,
 		RoutingKey: routing,
 		Message: &Message{
 			Body: common.Hex2Bin(body),
@@ -57,8 +57,8 @@ func TestCreate(t *testing.T) {
 		t.Fatal(err)
 	}
 	routingMap := make(map[string]string)
-	routingMap[prefix + "0"] = prefix + "0"
-	routingMap[prefix + "1"] = prefix + "1"
+	routingMap[prefix+"0"] = prefix + "0"
+	routingMap[prefix+"1"] = prefix + "1"
 	err := ch.InitBinds(exchName, routingMap, true)
 	if err != nil {
 		t.Fatal(err)

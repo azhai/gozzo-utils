@@ -9,9 +9,9 @@ import (
 )
 
 type Envelope struct {
-	QueueName   string
-	Exchange    string // basic.publish exchange
-	RoutingKey  string // basic.publish routing key
+	QueueName  string
+	Exchange   string // basic.publish exchange
+	RoutingKey string // basic.publish routing key
 	*Message
 }
 
@@ -22,10 +22,10 @@ func FromDeliverie(queName string, dlv amqp.Delivery) *Envelope {
 		return nil
 	}
 	return &Envelope{
-		QueueName: queName,
-		Exchange: dlv.Exchange,
+		QueueName:  queName,
+		Exchange:   dlv.Exchange,
 		RoutingKey: dlv.RoutingKey,
-		Message: &Message{Body: dlv.Body, Headers: dlv.Headers},
+		Message:    &Message{Body: dlv.Body, Headers: dlv.Headers},
 	}
 }
 
@@ -35,13 +35,13 @@ func IsValidateError(err error) bool {
 
 // 消息队列
 type MessageQueue struct {
-	Input  chan *Envelope
+	Input    chan *Envelope
 	Handlers map[string]RecvFunc
 }
 
 func NewMessageQueue() *MessageQueue {
 	return &MessageQueue{
-		Input:   make(chan *Envelope),
+		Input:    make(chan *Envelope),
 		Handlers: make(map[string]RecvFunc),
 	}
 }
@@ -64,7 +64,7 @@ func (mq *MessageQueue) AddRoutings(key, dst string, count int) map[string]strin
 
 func (mq *MessageQueue) AddMessage(exchName, routing string, msg *Message) {
 	if msg != nil {
-		evp := &Envelope{Exchange:exchName, RoutingKey:routing, Message: msg}
+		evp := &Envelope{Exchange: exchName, RoutingKey: routing, Message: msg}
 		mq.Input <- evp
 	}
 }

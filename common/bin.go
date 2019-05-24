@@ -48,6 +48,25 @@ func ToString(v interface{}) string {
 	return fmt.Sprintf("%#v", v)
 }
 
+// 获取其中一段字节，允许负索引
+func GetSlice(buffer []byte, start, stop, size int) []byte {
+	if size <= 0 {
+		if size = len(buffer); size <= 0 {
+			return nil
+		}
+	}
+	if start < 0 {
+		start += size
+	}
+	if stop <= 0 {
+		stop += size
+	}
+	if start >= 0 && stop <= size {
+		return buffer[start:stop]
+	}
+	return nil
+}
+
 // 补充空字节
 func ExtendBytes(data []byte, isLeft bool, size int) []byte {
 	if size <= 0 {
