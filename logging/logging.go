@@ -2,6 +2,8 @@ package logging
 
 import (
 	"path/filepath"
+	"regexp"
+	"runtime"
 	"strings"
 	"time"
 
@@ -35,6 +37,12 @@ func GetLogPath(path string) string {
 		return path
 	}
 	absPath, _ := filepath.Abs(path)
+	// 解决windows下zap不能识别路径中的盘符问题
+	// NOTICE:但会带来另一个问题：每次服务重启，日志文件将会清空
+	if "windows" == runtime.GOOS {
+		re := regexp.MustCompile(`^[A-Za-z]:`)
+		absPath = re.ReplaceAllLiteralString(absPath, "")
+	}
 	return absPath
 }
 
@@ -99,8 +107,10 @@ func (c *LogConfig) SetTimeFormat(layout string) {
 }
 
 func (c *LogConfig) BuildSugar() *Logger {
-	if logger, err := c.Build(); err == nil {
-		return logger.Sugar()
+	logger, err := c.Build()
+	if err != nil {
+		panic(err)
+		return nil
 	}
-	return nil
+	return logger.Sugar()
 }

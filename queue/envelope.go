@@ -114,7 +114,7 @@ func (mq *MessageQueue) NewTag(name string) string {
 	return name + "-" + time.Now().Format("0102150405999")
 }
 
-func (mq *MessageQueue) Subscribe(ch *Channel, queName string, receive RecvFunc) (err error) {
+func (mq *MessageQueue) Subscribe(ch *Channel, queName string, autoAck bool, receive RecvFunc) (err error) {
 	ctag := mq.NewTag(queName)
 	defer ch.Cancel(ctag, false)
 	var output <-chan amqp.Delivery
@@ -124,7 +124,7 @@ func (mq *MessageQueue) Subscribe(ch *Channel, queName string, receive RecvFunc)
 		case <-expired:
 			return
 		default:
-			output, err = ch.ConsumeQueue(queName, ctag, true)
+			output, err = ch.ConsumeQueue(queName, ctag, autoAck)
 			if err != nil {
 				ch.Close()
 				time.Sleep(1 * time.Second)
@@ -142,7 +142,7 @@ func (mq *MessageQueue) Subscribe(ch *Channel, queName string, receive RecvFunc)
 
 func (mq *MessageQueue) RunAll(ch *Channel, retries int) {
 	for queName, receive := range mq.Handlers {
-		go mq.Subscribe(ch, queName, receive)
+		go mq.Subscribe(ch, queName, true, receive)
 	}
 	pub := NewChannel(ch.ServerUrl)
 	mq.Publish(pub, mq.Input, retries)

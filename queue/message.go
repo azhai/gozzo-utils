@@ -9,21 +9,6 @@ import (
 	"github.com/streadway/amqp"
 )
 
-// 消息头
-func NewHeaders(protoId int) amqp.Table {
-	return amqp.Table{
-		"ProtocolId": int16(protoId),
-		"IMEI":       "",
-		"DeviceId":   "", // 非必需
-		"SessId":     "",
-		"CmdId":      "",       // 非必需
-		"MsgId":      int16(0), // 非必需
-		"RecvTime":   int64(0),
-		"Type":       int16(0), // 普通/登录/退出/回应
-		"Flags":      int16(0),
-	}
-}
-
 // 消息
 type Message struct {
 	Body    []byte
@@ -31,32 +16,20 @@ type Message struct {
 }
 
 func NewMessage(body []byte) *Message {
-	var headers = NewHeaders(0)
-	return &Message{Headers: headers, Body: body}
-}
-
-func (m *Message) SetHeaderInt(key string, val int) {
-	m.Headers[key] = int16(val)
-}
-
-func (m *Message) GetHeaderInt16(key string) int16 {
-	if val, ok := m.Headers[key]; ok {
-		return val.(int16)
-	}
-	return 0
+	return &Message{Body: body, Headers: amqp.Table{}}
 }
 
 func (m *Message) GetHeaderString(key string) string {
-	if val, ok := m.Headers[key]; ok {
-		return val.(string)
+	if value, ok := m.Headers[key]; ok {
+		return value.(string)
 	}
 	return ""
 }
 
 // 有可能是整数
 func (m *Message) GetHeaderSafe(key string) string {
-	if val, ok := m.Headers[key]; ok {
-		switch v := val.(type) {
+	if value, ok := m.Headers[key]; ok {
+		switch v := value.(type) {
 		case string:
 			return v
 		case []byte:
@@ -74,35 +47,51 @@ func (m *Message) GetHeaderSafe(key string) string {
 	return ""
 }
 
-func (m *Message) GetCmdId() string {
-	return m.GetHeaderString("CmdId")
+func (m *Message) SetHeaderInt(key string, value, bits int) {
+	if bits == 16 {
+		m.Headers[key] = int16(value)
+	} else if bits == 32 {
+		m.Headers[key] = int32(value)
+	} else {
+		m.Headers[key] = int64(value)
+	}
 }
 
-func (m *Message) GetImei() string {
-	return m.GetHeaderSafe("IMEI")
+func (m *Message) GetHeaderInt16(key string) int16 {
+	if value, ok := m.Headers[key]; ok {
+		return value.(int16)
+	}
+	return 0
 }
 
-func (m *Message) ChangeProtoId(v int) {
-	m.SetHeaderInt("ProtocolId", v)
+func (m *Message) GetHeaderInt32(key string) int32 {
+	if value, ok := m.Headers[key]; ok {
+		return value.(int32)
+	}
+	return 0
 }
 
-func (m *Message) ChangeType(v int) {
-	m.SetHeaderInt("Type", v)
+func (m *Message) GetHeaderInt64(key string) int64 {
+	if value, ok := m.Headers[key]; ok {
+		return value.(int64)
+	}
+	return 0
 }
 
-func (m *Message) AddFlag(v int16, replace bool) {
+func (m *Message) AddFlag(key string, v int16, replace bool) int16 {
 	if !replace {
-		if val := m.GetHeaderInt16("Flags"); val > 0 {
-			v = v | val
+		if value := m.GetHeaderInt16(key); value > 0 {
+			v = v | value
 		}
 	}
-	m.Headers["Flags"] = v
+	m.Headers[key] = v
+	return v
 }
 
-func (m *Message) SetRecvTime(t time.Time) {
-	m.Headers["RecvTime"] = int64(t.UnixNano() / 1000000)
+func (m *Message) SetTime(key string, t time.Time) {
+	m.Headers[key] = int64(t.UnixNano() / 1000000)
 }
 
-func (m *Message) SetRecvTimeNow() {
-	m.SetRecvTime(time.Now())
+func (m *Message) SetTimeNow(key string) {
+	m.SetTime(key, time.Now())
 }
