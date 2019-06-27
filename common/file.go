@@ -33,75 +33,74 @@ func FileSize(path string) (int64, bool) {
 	return size, true
 }
 
-func CreateFile(path string, mode os.FileMode) (fp *os.File, err error) {
+func CreateFile(path string) (fp *os.File, err error) {
 	// create dirs if file not exists
 	if dir := filepath.Dir(path); dir != "." {
 		err = os.MkdirAll(dir, DIR_MODE)
 	}
 	if err == nil {
-		fp, err = os.Create(path)
-		if err == nil && mode != 0666 {
-			fp.Chmod(mode)
-		}
+		flag := os.O_RDWR|os.O_CREATE|os.O_TRUNC
+		fp, err = os.OpenFile(path, flag, FILE_MODE)
 	}
 	return
 }
 
-func OpenFile(path string) (fp *os.File, size int64, err error) {
+func OpenFile(path string, readonly, append bool) (fp *os.File, size int64, err error) {
 	var exists bool
 	size, exists = FileSize(path)
 	if size < 0 {
 		err = fmt.Errorf("Path is directory or illegal")
 		return
 	}
-	if exists == false {
-		fp, err = CreateFile(path, FILE_MODE)
-	} else if size == 0 {
-		fp, err = os.OpenFile(path, os.O_RDWR, FILE_MODE)
-	} else {
-		fp, err = os.Open(path) // 打开方式为 os.O_RDONLY
+	if exists {
+		flag := os.O_RDWR
+		if readonly {
+			flag = os.O_RDONLY
+		} else if append {
+			flag |= os.O_APPEND
+		}
+		fp, err = os.OpenFile(path, flag, FILE_MODE)
+	} else if readonly == false {
+		fp, err = CreateFile(path)
 	}
 	return
 }
 
-// 按行读取文件全部
-func ReadFileLines(path string) ([]string, error) {
-	fp, _, err := OpenFile(path)
+// 按分割方法读取文件全部
+func ReadFile(path string, split bufio.SplitFunc) ([]string, error) {
+	fp, _, err := OpenFile(path, true, false)
 	if err != nil {
 		return nil, err
 	}
 	defer fp.Close()
-	return ReadLines(fp)
-}
-
-func ReadLines(r io.Reader) ([]string, error) {
-	var lines []string
-	scanner := bufio.NewScanner(r)
-	scanner.Split(bufio.ScanLines)
+	var result []string
+	scanner := bufio.NewScanner(fp)
+	scanner.Split(split)
 	for scanner.Scan() {
-		lines = append(lines, scanner.Text())
+		result = append(result, scanner.Text())
 	}
-	return lines, scanner.Err()
+	return result, scanner.Err()
 }
 
 // 读取文件末尾若干字节
-func ReadFileTail(file string, size int) (data []byte, err error) {
-	var fp *os.File
-	if fp, err = os.Open(file); err != nil {
-		return
+func ReadFileTail(path string, size int) ([]byte, error) {
+	fp, _, err := OpenFile(path, true, false)
+	if err != nil {
+		return nil, err
 	}
 	defer fp.Close()
-	offset, err := fp.Seek(0-int64(size), os.SEEK_END)
-	// 当size超出文件大小时，游标移到开头并报错，这里忽略错误
-	if offset >= 0 {
-		data = make([]byte, size)
-		reads, err := fp.Read(data)
-		if reads >= 0 {
-			data = data[:reads]
-		}
-		if err == io.EOF {
-			err = nil
-		}
+	offset, err := fp.Seek(0-int64(size), io.SeekEnd)
+	if offset < 0 {
+		return nil, err
 	}
-	return
+	// 当size超出文件大小时，游标移到开头并报错，这里忽略错误
+	result := make([]byte, size)
+	reads, err := fp.Read(result)
+	if reads >= 0 {
+		result = result[:reads]
+	}
+	if err == io.EOF {
+		err = nil
+	}
+	return result, err
 }

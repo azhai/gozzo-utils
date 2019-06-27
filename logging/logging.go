@@ -1,6 +1,7 @@
 package logging
 
 import (
+	"github.com/azhai/gozzo-utils/common"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -68,6 +69,18 @@ func NewDevLogger(errput string, outputs ...string) *Logger {
 	cfg.SetLevelName("debug")
 	cfg.SetTimeFormat("2006-01-02 15:04:05.999")
 	return cfg.BuildSugar()
+}
+
+func NewLoggerInDir(level, logdir string) *Logger {
+	errfile := filepath.Join(logdir, "error.log")
+	if fp, _, err := common.OpenFile(errfile, false, true); err == nil {
+		fp.Close()
+	}
+	outfile := filepath.Join(logdir, "access.log")
+	if fp, _, err := common.OpenFile(outfile, false, true); err == nil {
+		fp.Close()
+	}
+	return NewLogger(level, errfile, outfile)
 }
 
 type LogConfig struct {
