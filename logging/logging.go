@@ -39,7 +39,6 @@ func GetLogPath(path string) string {
 	}
 	absPath, _ := filepath.Abs(path)
 	// 解决windows下zap不能识别路径中的盘符问题
-	// NOTICE:但会带来另一个问题：每次服务重启，日志文件将会清空
 	if "windows" == runtime.GOOS {
 		re := regexp.MustCompile(`^[A-Za-z]:`)
 		absPath = re.ReplaceAllLiteralString(absPath, "")

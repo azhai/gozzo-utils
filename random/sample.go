@@ -25,6 +25,19 @@ func RandInt(n int) int {
 	return seedRand.Intn(n)
 }
 
+// 取[min, max]之间（含两端）的随机数
+func RandMinMax(min, max int) int {
+	diff := max - min
+	if diff == 0 {
+		return min
+	}
+	if diff < 0 {
+		diff = 0 - diff
+		min, max = max, min
+	}
+	return min + RandInt(diff + 1)
+}
+
 // 从一定长度的数组中随机选取若干个索引，索引按正序（可能有循环）排列
 func Sample(times, count int) (nums []int) {
 	if count <= 0 || times <= 0 {

@@ -1,8 +1,30 @@
 package common
 
+import (
+	"fmt"
+	"strings"
+)
+
 type WalkFunc func(item interface{}) error
 type MapFunc func(item interface{}) (interface{}, error)
 type ReduceFunc func(a, b interface{}) (interface{}, error)
+
+// 将字符串数组转为一般数组
+func ToList(data []string) []interface{} {
+	result := make([]interface{}, len(data))
+	for i, v := range data {
+		result[i] = v
+	}
+	return result
+}
+
+func SprintfString(tpl string, data []string) string {
+	return fmt.Sprintf(tpl, ToList(data)...)
+}
+
+func SprintfSplit(tpl string, data, sep string) string {
+	return SprintfString(tpl, strings.Split(data, sep))
+}
 
 type IArray interface {
 	ToList() []interface{}
