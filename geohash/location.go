@@ -3,6 +3,7 @@ package geohash
 import (
 	"math"
 
+	"github.com/azhai/gozzo-utils/common"
 	"github.com/azhai/gozzo-utils/random"
 	"github.com/kellydunn/golang-geo"
 )
@@ -27,30 +28,37 @@ func GetOrientDesc(degree int) string {
 	return descs[i]
 }
 
-// 经度或纬度
-type Dimension struct {
-	Value float64
-}
-
-type Position struct {
-	Latitude, Longitude float64 // 纬度和经度
-	Altitude            float32 // 海拔高度
-}
-
-func GetDistance(lastLat, lastLng, currLat, currLng float64) (distance, bearing int) {
-	last := geo.NewPoint(lastLat, lastLng)
-	curr := geo.NewPoint(currLat, currLng)
-	distance = int(last.GreatCircleDistance(curr) * 1000)
-	bearing = int(math.Round(last.BearingTo(curr)))
+// 计算A点到B点的距离（单位：米）和方向（顺时针0-359度）
+func GetDistance(latA, lngA, latB, lngB float64) (int, int) {
+	posA, posB := geo.NewPoint(latA, lngA), geo.NewPoint(latB, lngB)
+	distance := int(posA.GreatCircleDistance(posB) * 1000)
+	bearing := int(math.Round(posA.BearingTo(posB)))
 	if bearing < 0 {
 		bearing += 360
 	}
-	return
+	return distance, bearing
 }
 
-func GetRandSpeed(gap, bearing, angle int, distance float64) (speed float32, orient int) {
-	orient = bearing + random.RandMinMax(-15, 15)          // 左右摇摆15度
+// 根据角度差和时间（秒），估算行驶这段距离的速度（公里每小时）和方向
+// bearing为当前方向（比如B到C），oldBearing为旧的方向（比如A到B）
+func GetInexactSpeed(distance, bearing, oldBearing, gap int) (float32, int) {
+	angle := (90 - (bearing-oldBearing)%180) % 90 // 0-90的角度差，相差越大，实际距离比直线距离越大
 	ratio := float32(300-angle+random.RandInt(31)) / 200.0 // 根据角度差异，增加5%~70%的速度
-	speed = float32(distance) * ratio / float32(gap)
-	return
+	speed := float32(distance) * ratio * UnitKmph / float32(gap)
+	bearing += random.RandMinMax(-15, 15) // 左右摇摆15度
+	return speed, bearing
+}
+
+// 经度或纬度
+type Dimension struct {
+	*common.Decimal
+}
+
+func NewDimension(value float64) *Dimension {
+	return &Dimension{common.NewDecimal(value, 6)}
+}
+
+type Position struct {
+	Latitude, Longitude *Dimension // 纬度和经度
+	Altitude            float32 // 海拔高度
 }

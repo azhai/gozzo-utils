@@ -33,53 +33,63 @@ func SplitPieces(text, sep string, conv ConvAction) []string {
 
 // 高精度小数
 type Decimal struct {
-	Integer, Fraction int // 整数和小数部分
-	Precision         int // 精确到小数点后第几位
+	Value     int64 // 扩大后成为整数
+	Precision int   // 小数点后位数，限制15以内
 }
 
-func NewDecimal(value float64, prec int) Decimal {
-	d := Decimal{Precision: prec, Integer: int(value)}
-	remain := value - float64(d.Integer)
-	remain *=  math.Pow10(d.Precision)
-	d.Fraction = int(math.Round(remain))
+func NewDecimal(value float64, prec int) *Decimal {
+	d := &Decimal{}
+	d.SetPrecision(prec)
+	d.SetValue(value, d.Precision)
 	return d
 }
 
 func (d *Decimal) HasFraction() bool {
-	return d.Precision > 0 && d.Fraction != 0
+	if d.Precision <= 0 {
+		return false
+	}
+	base := int64(math.Pow10(d.Precision))
+	return d.Value%base != 0
 }
 
-func (d *Decimal) CorrectPrecision(prec int) int {
-	if prec > 9 {
-		prec = 9
-	} else if prec < 0 {
-		prec = 0
+func (d *Decimal) SetValue(value float64, expand int) {
+	if expand > 0 {
+		value *= math.Pow10(expand)
 	}
-	return prec
+	d.Value = int64(math.Round(value))
+}
+
+func (d *Decimal) SetPrecision(prec int) {
+	if prec >= 15 {
+		d.Precision = 15
+	} else if prec <= 0 {
+		d.Precision = 0
+	} else {
+		d.Precision = prec
+	}
 }
 
 func (d *Decimal) ChangePrecision(offset int) {
 	oldPrec := d.Precision
-	d.Precision = d.CorrectPrecision(d.Precision + offset)
+	d.SetPrecision(d.Precision + offset)
 	offset = d.Precision - oldPrec
-	if offset == 0 || d.HasFraction() == false {
-		return
-	}
 	if offset > 0 {
-		d.Fraction *= int(math.Pow10(offset))
-	} else {
-		remain := float64(d.Fraction) / math.Pow10(offset)
-		d.Fraction = int(math.Round(remain))
+		d.Value *= int64(math.Pow10(offset))
+	} else if offset < 0 {
+		d.SetValue(float64(d.Value), 0-offset)
 	}
 }
 
 func (d *Decimal) String() string {
-	result := strconv.Itoa(d.Integer)
-	if d.HasFraction() {
-		tpl := "%0" + strconv.Itoa(d.Precision) + "d"
-		frac := fmt.Sprintf(tpl, d.Fraction)
-		result += "." + strings.TrimRight(frac, "0")
+	result := strconv.FormatInt(d.Value, 10)
+	if size := len(result) - d.Precision; size > 0 {
+		result = result[:size] + "." + result[size:]
+	} else {
+		result = "0." + strings.Repeat("0", 0-size) + result
 	}
+	// 分开去除，否则会去掉整数部分末尾的0
+	result = strings.TrimRight(result, "0")
+	result = strings.TrimRight(result, ".")
 	return result
 }
 
