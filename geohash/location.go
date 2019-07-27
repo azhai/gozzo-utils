@@ -124,14 +124,15 @@ type Polygon = geo.Polygon
 // 航线围栏
 type Stripe struct {
 	coord *Coordinate
+	values []string
 	*list.List
 }
 
 // padding为道路单边宽度（米）
 func NewStripe(padding int, points ...*geo.Point) *Stripe {
 	coord := NewCoordinate(float64(padding))
-	s := &Stripe{coord, list.New()}
-	s.Extend(points)
+	s := &Stripe{coord, nil, list.New()}
+	s.Insert(points...)
 	return s
 }
 
@@ -141,11 +142,7 @@ func (s *Stripe) Hash(point *geo.Point) string {
 }
 
 func (s *Stripe) Values() []string {
-	var values []string
-	for mark := s.Front(); mark != nil; mark = mark.Next() {
-		values = append(values, mark.Value.(string))
-	}
-	return values
+	return s.values
 }
 
 // 从后往前查找最近的两个点
@@ -163,54 +160,27 @@ func (s *Stripe) Seek(value string) (*list.Element, *list.Element) {
 	return nil, nil
 }
 
-// 在合适位置增加一个点
-func (s *Stripe) Insert(point *geo.Point) *list.Element {
-	value := s.Hash(point)
-	if s.Len() == 0 {
-		return s.PushFront(value)
-	}
-	// 与起点比较，快速处理特殊情况
-	flag := strings.Compare(value, s.Front().Value.(string))
-	if flag == 0 {
-		return nil // 点已存在，不再重复
-	} else if flag < 0 {
-		return s.PushFront(value)
-	} else if s.Len() == 1 {
-		return s.PushBack(value)
-	}
-	// 由终点开始，从后往前挨个比较
-	mark, another := s.Seek(value)
-	if mark != nil {
-		return s.InsertAfter(value, mark)
-	} else if another != nil {
-		return nil // 点已存在，不再重复
-	}
-	return s.PushFront(value) // 都在同一侧，插入到最前面
-}
-
-// 增加多个点
-func (s *Stripe) Extend(points []*geo.Point) {
-	// 少于等于两个点，改用单个插入
-	if len(points) <= 2 {
-		for _, p := range points {
-			s.Insert(p)
-		}
-		return
-	}
+// 在合适位置增加多个点
+func (s *Stripe) Insert(points ...*geo.Point) {
 	// 将原有值和新增的值放在一起排序，重新构建列表
-	values := s.Values()
 	for _, p := range points {
-		values = append(values, s.Hash(p))
+		s.values = append(s.values, s.Hash(p))
 	}
-	sort.Strings(values)
+	sort.Strings(s.values)
 	s.Init() // 清空列表
-	for _, value := range values {
+	for _, value := range s.values {
 		s.PushBack(value)
 	}
 }
 
 func (s *Stripe) Contains(point *geo.Point) bool {
 	value := s.Hash(point)
-	mark, another := s.Seek(value)
-	return mark != nil || another != nil
+	// 二分查找，从前向后查找，idx可能是0-len
+	idx := sort.Search(s.Len(), func(i int) bool {
+		return strings.Compare(s.values[i], value) >= 0
+	})
+	if idx == 0 { // 可能小于或等于首个元素
+		return strings.Compare(s.values[idx], value) == 0
+	}
+	return idx < s.Len()
 }
