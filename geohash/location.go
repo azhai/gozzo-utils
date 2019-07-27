@@ -2,7 +2,10 @@ package geohash
 
 import (
 	"math"
+	"sort"
+	"strings"
 	"time"
+	"container/list"
 
 	"github.com/azhai/gozzo-utils/common"
 	"github.com/azhai/gozzo-utils/random"
@@ -52,8 +55,8 @@ func NewDimension(value float64) *Dimension {
 }
 
 type Position struct {
-	Moment int64 //时间戳
-	Altitude, Bearing  int  // 海拔高度（米）和方向（顺时针0-359度）
+	Moment            int64 // 时间戳
+	Altitude, Bearing int   // 海拔高度（米）和方向（顺时针0-359度）
 	*geo.Point
 }
 
@@ -65,7 +68,7 @@ func NewPosition(lat, lng float64, t *time.Time) *Position {
 func (p *Position) Add(dist, angle, alt int) *Position {
 	return &Position{
 		p.Moment, p.Altitude + alt, 0,
-		p.PointAtDistanceAndBearing(float64(dist) / 1000.0, float64(angle)),
+		p.PointAtDistanceAndBearing(float64(dist)/1000.0, float64(angle)),
 	}
 }
 
@@ -89,9 +92,125 @@ func (p *Position) GetInexactSpeed(target *Position) (float32, int) {
 		return target.GetInexactSpeed(p)
 	}
 	dist, angle := p.GetDistance(target)
-	angle = (90 - (angle-p.Bearing)%180) % 90          // 0-90的角度差，相差越大，实际距离比直线距离越大
+	angle = (90 - (angle-p.Bearing)%180) % 90              // 0-90的角度差，相差越大，实际距离比直线距离越大
 	ratio := float32(300-angle+random.RandInt(31)) / 200.0 // 根据角度差异，增加5%~70%的速度
 	gap := target.Moment - p.Moment
 	speed := float32(dist) * ratio / float32(gap)
 	return speed, bear
+}
+
+// 围栏接口
+type Enclosure interface {
+	Contains(point *geo.Point) bool // 是否在围栏内（含边界）
+}
+
+// 圆形围栏
+type Circle struct {
+	Center *geo.Point // 中心点
+	Radius int        // 半径
+}
+
+func (c *Circle) Contains(point *geo.Point) bool {
+	if c.Radius <= 0 {
+		return false
+	}
+	distKilo := c.Center.GreatCircleDistance(point)
+	return int(distKilo*1000) <= c.Radius
+}
+
+// 多边形围栏
+type Polygon = geo.Polygon
+
+// 航线围栏
+type Stripe struct {
+	coord *Coordinate
+	*list.List
+}
+
+// padding为道路单边宽度（米）
+func NewStripe(padding int, points ...*geo.Point) *Stripe {
+	coord := NewCoordinate(float64(padding))
+	s := &Stripe{coord, list.New()}
+	s.Extend(points)
+	return s
+}
+
+// 计算Hilbert哈希值
+func (s *Stripe) Hash(point *geo.Point) string {
+	return s.coord.Encode(point.Lat(), point.Lng())
+}
+
+func (s *Stripe) Values() []string {
+	var values []string
+	for mark := s.Front(); mark != nil; mark = mark.Next() {
+		values = append(values, mark.Value.(string))
+	}
+	return values
+}
+
+// 从后往前查找最近的两个点
+func (s *Stripe) Seek(value string) (*list.Element, *list.Element) {
+	for mark := s.Back(); mark != nil; mark = mark.Prev()  {
+		flag := strings.Compare(value, mark.Value.(string))
+		if flag == 0 { // 找到一个重复的点
+			return nil, mark // 前一个元素留空，方便后续判断
+		}
+		if flag > 0 { // 与终点同一侧，继续
+			continue
+		}
+		return mark, mark.Next()
+	}
+	return nil, nil
+}
+
+// 在合适位置增加一个点
+func (s *Stripe) Insert(point *geo.Point) *list.Element {
+	value := s.Hash(point)
+	if s.Len() == 0 {
+		return s.PushFront(value)
+	}
+	// 与起点比较，快速处理特殊情况
+	flag := strings.Compare(value, s.Front().Value.(string))
+	if flag == 0 {
+		return nil // 点已存在，不再重复
+	} else if flag < 0 {
+		return s.PushFront(value)
+	} else if s.Len() == 1 {
+		return s.PushBack(value)
+	}
+	// 由终点开始，从后往前挨个比较
+	mark, another := s.Seek(value)
+	if mark != nil {
+		return s.InsertAfter(value, mark)
+	} else if another != nil {
+		return nil // 点已存在，不再重复
+	}
+	return s.PushFront(value) // 都在同一侧，插入到最前面
+}
+
+// 增加多个点
+func (s *Stripe) Extend(points []*geo.Point) {
+	// 少于等于两个点，改用单个插入
+	if len(points) <= 2 {
+		for _, p := range points {
+			s.Insert(p)
+		}
+		return
+	}
+	// 将原有值和新增的值放在一起排序，重新构建列表
+	values := s.Values()
+	for _, p := range points {
+		values = append(values, s.Hash(p))
+	}
+	sort.Strings(values)
+	s.Init() // 清空列表
+	for _, value := range values {
+		s.PushBack(value)
+	}
+}
+
+func (s *Stripe) Contains(point *geo.Point) bool {
+	value := s.Hash(point)
+	mark, another := s.Seek(value)
+	return mark != nil || another != nil
 }
