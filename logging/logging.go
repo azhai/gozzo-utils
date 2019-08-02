@@ -1,13 +1,15 @@
 package logging
 
 import (
-	"github.com/azhai/gozzo-utils/common"
+	"io/ioutil"
+	"os"
 	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
 	"time"
 
+	"github.com/azhai/gozzo-utils/common"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -30,20 +32,59 @@ var LogLevels = map[string]zapcore.Level{
 	"emergency": zapcore.FatalLevel, // zap中无emergency等级
 }
 
-func GetLogPath(path string) string {
-	if path == "" || path == "/dev/null" {
-		return "/dev/null"
+var DefaultConfig = LogConfig{
+	Encoding:   "console",
+	LeastLevel: "info",
+	TimeFormat: "2006-01-02 15:04:05",
+	Outputs:    []string{"stderr"},
+}
+
+func NewLogger(level, logdir string) *Logger {
+	errfile := filepath.Join(logdir, "error.log")
+	outfile := filepath.Join(logdir, "access.log")
+	cfg := DefaultConfig
+	cfg.LeastLevel = level
+	cfg.ErrorFile = errfile
+	cfg.Outputs = []string{outfile}
+	return cfg.BuildSugar()
+}
+
+type LogConfig struct {
+	Development bool
+	Encoding    string
+	LeastLevel  string
+	TimeFormat  string
+	ErrorFile   string
+	Outputs     []string
+}
+
+func (c LogConfig) BuildSugar() *Logger {
+	var encoder zapcore.Encoder
+	config := CustomEncoderConfig(c.TimeFormat)
+	if strings.ToLower(c.Encoding) == "json" {
+		encoder = zapcore.NewJSONEncoder(config)
+	} else {
+		encoder = zapcore.NewConsoleEncoder(config)
 	}
-	if path == "stdout" || path == "stderr" {
-		return path
+
+	var cores []zapcore.Core
+	writer := GetWriteSyncer(c.Outputs...)
+	priority := GetLevelEnabler(c.LeastLevel, "")
+	if c.ErrorFile != "" {
+		errWriter := GetWriteSyncer(c.ErrorFile)
+		errPriority := GetLevelEnabler("error", "")
+		priority = GetLevelEnabler(c.LeastLevel, "warn")
+		cores = append(cores, zapcore.NewCore(encoder, errWriter, errPriority))
 	}
-	absPath, _ := filepath.Abs(path)
-	// 解决windows下zap不能识别路径中的盘符问题
-	if "windows" == runtime.GOOS {
-		re := regexp.MustCompile(`^[A-Za-z]:`)
-		absPath = re.ReplaceAllLiteralString(absPath, "")
+	cores = append(cores, zapcore.NewCore(encoder, writer, priority))
+
+	var opts []zap.Option
+	if c.Development {
+		opts = []zap.Option{zap.Development()}
 	}
-	return absPath
+	logger := zap.New(zapcore.NewTee(cores...), opts...)
+	defer logger.Sync()
+	return logger.Sugar()
 }
 
 func CustomEncoderConfig(layout string) zapcore.EncoderConfig {
@@ -56,73 +97,65 @@ func CustomEncoderConfig(layout string) zapcore.EncoderConfig {
 	return ecfg
 }
 
-func NewLogger(level, errput string, outputs ...string) *Logger {
-	cfg := NewConfig(errput, outputs...)
-	cfg.SetLevelName(level)
-	return cfg.BuildSugar()
-}
-
-func NewDevLogger(errput string, outputs ...string) *Logger {
-	cfg := NewConfig(errput, outputs...)
-	cfg.SetDevMode(true)
-	cfg.SetLevelName("debug")
-	cfg.SetTimeFormat("2006-01-02 15:04:05.999")
-	return cfg.BuildSugar()
-}
-
-func NewLoggerInDir(level, logdir string) *Logger {
-	errfile := filepath.Join(logdir, "error.log")
-	if fp, _, err := common.OpenFile(errfile, false, true); err == nil {
-		fp.Close()
+// 使用绝对路径
+func GetLogPath(path string, createIt bool) string {
+	absPath, _ := filepath.Abs(path)
+	// 解决windows下zap不能识别路径中的盘符问题
+	if "windows" == runtime.GOOS {
+		re := regexp.MustCompile(`^[A-Za-z]:`)
+		absPath = re.ReplaceAllLiteralString(absPath, "")
 	}
-	outfile := filepath.Join(logdir, "access.log")
-	if fp, _, err := common.OpenFile(outfile, false, true); err == nil {
-		fp.Close()
+	if createIt { // 如果不存在就创建文件
+		fp, _, err := common.OpenFile(absPath, false, true)
+		if err == nil {
+			fp.Close()
+		}
 	}
-	return NewLogger(level, errfile, outfile)
+	return absPath
 }
 
-type LogConfig struct {
-	zap.Config
-	LevelName  string
-	TimeFormat string
-}
-
-func NewConfig(errput string, outputs ...string) *LogConfig {
-	cfg := zap.NewProductionConfig()
-	cfg.ErrorOutputPaths = []string{GetLogPath(errput)}
-	cfg.OutputPaths = make([]string, 0) // 清空，原来是 []string{"stderr"}
-	for _, output := range outputs {
-		cfg.OutputPaths = append(cfg.OutputPaths, GetLogPath(output))
+// 日志接收者
+func GetWriteSyncer(pathes ...string) zapcore.WriteSyncer {
+	if len(pathes) == 0 {
+		pathes = []string{""}
 	}
-	cfg.Encoding = "console"
-	cfg.EncoderConfig = CustomEncoderConfig("2006-01-02 15:04:05")
-	return &LogConfig{cfg, "info", "2006-01-02 15:04:05"}
-}
-
-func (c *LogConfig) SetDevMode(isDev bool) {
-	c.Development = isDev
-}
-
-func (c *LogConfig) SetLevelName(level string) {
-	c.LevelName = strings.ToLower(level)
-	if lvl, ok := LogLevels[c.LevelName]; ok { // 默认INFO及以上
-		c.Level = zap.NewAtomicLevelAt(lvl)
+	switch pathes[0] {
+	case "", "/dev/null":
+		return zapcore.AddSync(ioutil.Discard)
+	case "stderr":
+		return zapcore.Lock(os.Stderr)
+	case "stdout":
+		return zapcore.Lock(os.Stdout)
 	}
-}
-
-func (c *LogConfig) SetTimeFormat(layout string) {
-	c.TimeFormat = layout
-	c.EncoderConfig.EncodeTime = func(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
-		enc.AppendString(t.Format(c.TimeFormat))
+	for i, path := range pathes {
+		pathes[i] = GetLogPath(path, true)
 	}
-}
-
-func (c *LogConfig) BuildSugar() *Logger {
-	logger, err := c.Build()
+	sink, closer, err := zap.Open(pathes...)
 	if err != nil {
-		panic(err)
+		closer()
 		return nil
 	}
-	return logger.Sugar()
+	return sink
+}
+
+// 级别过滤
+func GetLevelEnabler(start, stop string) zapcore.LevelEnabler {
+	startLvl, stopLvl := zapcore.DebugLevel, zapcore.FatalLevel
+	if level, ok := LogLevels[strings.ToLower(start)]; ok {
+		startLvl = level
+	}
+	if level, ok := LogLevels[strings.ToLower(stop)]; ok {
+		stopLvl = level
+	}
+	if stopLvl == zapcore.FatalLevel {
+		return zap.NewAtomicLevelAt(startLvl)
+	} else if stopLvl == startLvl {
+		return zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
+			return lvl == startLvl
+		})
+	} else {
+		return zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
+			return lvl >= startLvl && lvl <= stopLvl
+		})
+	}
 }

@@ -116,5 +116,5 @@ func (this *HandlerSocketIndex) Update(limit int, oper string, where []interface
 }
 
 func ToString(val interface{}) string {
-	return fmt.Sprintf("%s", val)
+	return fmt.Sprintf("%v", val)
 }

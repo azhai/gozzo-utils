@@ -32,49 +32,49 @@ func NewRedisPool(addr, passwd string, db int) *RedisPool {
 /// 以下为对象方法                                         ///
 ////////////////////////////////////////////////////////////
 
-func (this *RedisPool) Reset(retryTimes, maxIdle int) {
-	this.retryTimes = retryTimes
-	this.pool = redis.NewPool(this.Dial, maxIdle)
+func (rp *RedisPool) Reset(retryTimes, maxIdle int) {
+	rp.retryTimes = retryTimes
+	rp.pool = &redis.Pool{Dial: rp.Dial, MaxIdle: maxIdle}
 }
 
 // 连接Redis
-func (this *RedisPool) Dial() (redis.Conn, error) {
-	opt := redis.DialDatabase(this.db)
-	conn, err := redis.Dial("tcp", this.addr, opt)
-	if err == nil && len(this.passwd) > 0 {
-		conn.Do("AUTH", this.passwd)
+func (rp *RedisPool) Dial() (redis.Conn, error) {
+	opt := redis.DialDatabase(rp.db)
+	conn, err := redis.Dial("tcp", rp.addr, opt)
+	if err == nil && len(rp.passwd) > 0 {
+		conn.Do("AUTH", rp.passwd)
 	}
 	return conn, err
 }
 
 // 从池中取出一个redis.Conn
-func (this *RedisPool) Get() redis.Conn {
-	if this.pool == nil {
-		this.Reset(this.retryTimes, this.maxIdle)
+func (rp *RedisPool) Get() redis.Conn {
+	if rp.pool == nil {
+		rp.Reset(rp.retryTimes, rp.maxIdle)
 	}
-	return this.pool.Get()
+	return rp.pool.Get()
 }
 
 // 关闭连接池和其中的连接
-func (this *RedisPool) Close() error {
-	if this.pool == nil {
+func (rp *RedisPool) Close() error {
+	if rp.pool == nil {
 		return nil
 	}
-	err := this.pool.Close()
+	err := rp.pool.Close()
 	if err == nil {
-		this.pool = nil
+		rp.pool = nil
 	}
 	return err
 }
 
 // 执行命令，将会重试几次
-func (this *RedisPool) Do(cmd string, args ...interface{}) (interface{}, error) {
+func (rp *RedisPool) Do(cmd string, args ...interface{}) (interface{}, error) {
 	var (
 		err   error
 		reply interface{}
 	)
-	for i := 0; i < this.retryTimes; i++ {
-		reply, err = this.Get().Do(cmd, args...)
+	for i := 0; i < rp.retryTimes; i++ {
+		reply, err = rp.Get().Do(cmd, args...)
 		if err == nil {
 			break
 		}
@@ -86,30 +86,44 @@ func (this *RedisPool) Do(cmd string, args ...interface{}) (interface{}, error) 
 /// 以下为接口函数                                         ///
 ////////////////////////////////////////////////////////////
 
-func GetInt64(self Redis, key string) (int64, error) {
-	reply, err := self.Do("GET", key)
+func DoWithKey(r Redis, cmd, key string, args ...interface{}) (interface{}, error) {
+	switch len(args) {
+	case 0:
+		return r.Do(cmd, key)
+	case 1:
+		return r.Do(cmd, key, args[0])
+	case 2:
+		return r.Do(cmd, key, args[0], args[1])
+	default:
+		args = append([]interface{}{key}, args...)
+		return r.Do(cmd, args...)
+	}
+}
+
+func GetInt64(r Redis, key string) (int64, error) {
+	reply, err := r.Do("GET", key)
 	return redis.Int64(reply, err)
 }
 
-func SetInt64(self Redis, key string, value, timeout int64) (int64, error) {
+func SetInt64(r Redis, key string, value, timeout int64) (int64, error) {
 	val := strconv.FormatInt(value, 10)
 	ttl := strconv.FormatInt(timeout, 10)
-	reply, err := self.Do("SET", key, val, ttl)
+	reply, err := r.Do("SET", key, val, ttl)
 	return redis.Int64(reply, err)
 }
 
 // 计数增加
-func IncrInt64(self Redis, key string, offset int64) (int64, error) {
+func IncrInt64(r Redis, key string, offset int64) (int64, error) {
 	var (
 		err   error
 		reply interface{}
 	)
 	if offset == 0 {
-		reply, err = self.Do("GET", key)
+		reply, err = r.Do("GET", key)
 	} else if offset == 1 {
-		reply, err = self.Do("INCR", key)
+		reply, err = r.Do("INCR", key)
 	} else {
-		reply, err = self.Do("INCRBY", key, offset)
+		reply, err = r.Do("INCRBY", key, offset)
 	}
 	return redis.Int64(reply, err)
 }

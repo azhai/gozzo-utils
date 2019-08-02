@@ -17,20 +17,24 @@ func NewRedisHash(inst Redis, name string, timeout int64) *RedisHash {
 	return &RedisHash{Inst: inst, name: name, ttl: ttl}
 }
 
-func (this *RedisHash) Set(key, value string) (string, error) {
-	reply, err := this.Inst.Do("HSET", this.name, key, value)
+func (rh *RedisHash) DoWith(cmd string, args ...interface{}) (interface{}, error) {
+	return DoWithKey(rh.Inst, cmd, rh.name, args...)
+}
+
+func (rh *RedisHash) Set(key, value string) (int, error) {
+	reply, err := rh.Inst.Do("HSET", rh.name, key, value)
 	if err == nil {
-		this.Inst.Do("SETTTL", this.name, this.ttl)
+		rh.Inst.Do("SETTTL", rh.name, rh.ttl)
 	}
+	return redis.Int(reply, err)
+}
+
+func (rh *RedisHash) Get(key string) (string, error) {
+	reply, err := rh.Inst.Do("HGET", rh.name, key)
 	return redis.String(reply, err)
 }
 
-func (this *RedisHash) Get(key string) (string, error) {
-	reply, err := this.Inst.Do("HGET", this.name, key)
-	return redis.String(reply, err)
-}
-
-func (this *RedisHash) GetAll() (map[string]string, error) {
-	reply, err := this.Inst.Do("HGETALL", this.name)
+func (rh *RedisHash) GetAll() (map[string]string, error) {
+	reply, err := rh.Inst.Do("HGETALL", rh.name)
 	return redis.StringMap(reply, err)
 }

@@ -9,6 +9,7 @@ type Channel struct {
 	*amqp.Channel
 }
 
+// 密码中的特殊字符，使用URI脱敏，参考 https://en.wikipedia.org/wiki/Percent-encoding
 func NewChannel(url string) *Channel {
 	if url == "" {
 		panic("AMQP URL is empty !")
@@ -19,10 +20,13 @@ func NewChannel(url string) *Channel {
 }
 
 func (c *Channel) Reconnect(force bool) (err error) {
-	if force || c.conn == nil {
+	if c.conn != nil {
+		if force == false {
+			return nil
+		}
 		c.Close()
-		c.conn, err = amqp.Dial(c.ServerUrl)
 	}
+	c.conn, err = amqp.Dial(c.ServerUrl)
 	c.Channel, err = c.conn.Channel()
 	return
 }
