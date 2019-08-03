@@ -40,12 +40,12 @@ var DefaultConfig = LogConfig{
 }
 
 func NewLogger(level, logdir string) *Logger {
-	errfile := filepath.Join(logdir, "error.log")
-	outfile := filepath.Join(logdir, "access.log")
 	cfg := DefaultConfig
 	cfg.LeastLevel = level
-	cfg.ErrorFile = errfile
-	cfg.Outputs = []string{outfile}
+	if logdir = strings.TrimSpace(logdir); logdir != "" {
+		cfg.ErrorFile = filepath.Join(logdir, "error.log")
+		cfg.Outputs = []string{filepath.Join(logdir, "access.log")}
+	}
 	return cfg.BuildSugar()
 }
 

@@ -44,6 +44,20 @@ func NewDecimal(value float64, prec int) *Decimal {
 	return d
 }
 
+func ParseDecimal(value string, prec int) *Decimal {
+	d := &Decimal{}
+	d.SetPrecision(prec)
+	d.Value, _ = strconv.ParseInt(value, 10, 64)
+	return d
+}
+
+func ParseDecimal(value string, prec int) *Decimal {
+	d := &Decimal{}
+	d.SetPrecision(prec)
+	d.Value, _ = strconv.ParseInt(value, 10, 64)
+	return d
+}
+
 func (d *Decimal) HasFraction() bool {
 	if d.Precision <= 0 {
 		return false
