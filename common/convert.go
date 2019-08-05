@@ -40,14 +40,23 @@ type Decimal struct {
 func NewDecimal(value float64, prec int) *Decimal {
 	d := &Decimal{}
 	d.SetPrecision(prec)
-	d.SetValue(value, d.Precision)
+	d.SetFloat(value, d.Precision)
 	return d
 }
 
-func ParseDecimal(value string, prec int) *Decimal {
+func ParseDecimal(text string, prec int) *Decimal {
 	d := &Decimal{}
 	d.SetPrecision(prec)
-	d.Value, _ = strconv.ParseInt(value, 10, 64)
+	if idx := strings.Index(text, "."); idx >= 0 {
+		size := d.Precision + idx + 1
+		if paddings := size - len(text); paddings > 0 {
+			zeros := strings.Repeat("0", paddings)
+			text = text[:idx] + text[idx+1:] + zeros
+		} else {
+			text = text[:idx] + text[idx+1:size]
+		}
+	}
+	d.Value, _ = strconv.ParseInt(text, 10, 64)
 	return d
 }
 
@@ -59,7 +68,11 @@ func (d *Decimal) HasFraction() bool {
 	return d.Value%base != 0
 }
 
-func (d *Decimal) SetValue(value float64, expand int) {
+func (d *Decimal) GetFloat() float64 {
+	return float64(d.Value) / math.Pow10(d.Precision)
+}
+
+func (d *Decimal) SetFloat(value float64, expand int) {
 	if expand > 0 {
 		value *= math.Pow10(expand)
 	}
@@ -83,7 +96,7 @@ func (d *Decimal) ChangePrecision(offset int) {
 	if offset > 0 {
 		d.Value *= int64(math.Pow10(offset))
 	} else if offset < 0 {
-		d.SetValue(float64(d.Value), 0-offset)
+		d.SetFloat(float64(d.Value), 0-offset)
 	}
 }
 
