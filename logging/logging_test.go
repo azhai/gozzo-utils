@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/azhai/gozzo-utils/common"
+	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 )
 
@@ -15,7 +16,7 @@ var (
 	soft    = "simple, fast, and reliable"
 	tpl     = "Go is an %s programming language, designed for building %s software."
 	msg     = fmt.Sprintf(tpl, lang, soft)
-	logdir = "/tmp/sugar_logger_test/"
+	logdir  = "/tmp/sugar_logger_test/"
 	outfile = "/tmp/sugar_logger_test/access.log"
 	errfile = "/tmp/sugar_logger_test/error.log"
 )
@@ -41,13 +42,8 @@ func TestInfo(t *testing.T) {
 	logger := CreateLogger("warning")
 	logger.Infof(tpl, lang, soft)
 	level, content := ReadLastLog(outfile)
-	t.Log(level)
-	t.Log(content)
-	if level == "INFO" {
-		t.Errorf("The level is %s", level)
-	} else if content != "" {
-		t.Errorf("The content is %s", content)
-	}
+	assert.Equal(t, "", level)
+	assert.Equal(t, "", content)
 }
 
 // 测试要记录的 WARN 级别
@@ -56,13 +52,8 @@ func TestWarn(t *testing.T) {
 	logger.Warn(msg)
 	logger.Warnf(tpl, lang, soft)
 	level, content := ReadLastLog(outfile)
-	t.Log(level)
-	t.Log(content)
-	if level != "WARN" {
-		t.Errorf("The level is %s", level)
-	} else if content != msg {
-		t.Errorf("The content is %s", content)
-	}
+	assert.Equal(t, "WARN", level)
+	assert.Equal(t, msg, content)
 }
 
 // 记录到另一个文件的 ERROR 级别
@@ -70,13 +61,8 @@ func TestError(t *testing.T) {
 	logger := CreateLogger("warning")
 	logger.Errorf(tpl, lang, soft)
 	level, content := ReadLastLog(errfile)
-	t.Log(level)
-	t.Log(content)
-	if level == "ERROR" {
-		t.Errorf("The level is %s", level)
-	} else if content != "" {
-		t.Errorf("The content is %s", content)
-	}
+	assert.Equal(t, "ERROR", level)
+	assert.Equal(t, msg, content)
 }
 
 // 不记录

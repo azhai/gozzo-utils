@@ -1,3 +1,5 @@
+# github.com/davecgh/go-spew v1.1.0
+github.com/davecgh/go-spew/spew
 # github.com/erikstmartin/go-testdb v0.0.0-20160219214506-8d10e4a1bae5
 github.com/erikstmartin/go-testdb
 # github.com/gomodule/redigo v2.0.0+incompatible
@@ -13,8 +15,12 @@ github.com/kylelemons/go-gypsy/yaml
 github.com/lib/pq
 github.com/lib/pq/oid
 github.com/lib/pq/scram
+# github.com/pmezard/go-difflib v1.0.0
+github.com/pmezard/go-difflib/difflib
 # github.com/streadway/amqp v0.0.0-20190404075320-75d898a42a94
 github.com/streadway/amqp
+# github.com/stretchr/testify v1.3.0
+github.com/stretchr/testify/assert
 # github.com/ziutek/mymysql v1.5.4
 github.com/ziutek/mymysql/godrv
 github.com/ziutek/mymysql/mysql

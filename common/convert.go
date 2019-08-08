@@ -115,20 +115,34 @@ func (d *Decimal) String() string {
 
 // JSON中的日期时间类型
 type JsonTime struct {
-	Layout string // 格式，例如2006-01-02 15:04:05.999
 	time.Time
 }
 
+func (t JsonTime) GetLayout() string {
+	return "2006-01-02 15:04:05"
+}
+
 func (t JsonTime) MarshalJSON() ([]byte, error) {
-	var stamp = fmt.Sprintf("\"%s\"", t.Format(t.Layout))
+	l := t.GetLayout()
+	stamp := fmt.Sprintf("\"%s\"", t.Format(l))
 	return []byte(stamp), nil
 }
 
 func (t *JsonTime) UnmarshalJSON(buf []byte) error {
-	tt, err := time.Parse(t.Layout, strings.Trim(string(buf), `"`))
+	l := t.GetLayout()
+	tt, err := time.Parse(l, strings.Trim(string(buf), `"`))
 	if err != nil {
 		return err
 	}
 	t.Time = tt
 	return nil
+}
+
+// 精确到毫秒,用于SqlServer等场景
+type JsonTimeMS struct {
+	time.Time
+}
+
+func (t JsonTimeMS) GetLayout() string {
+	return "2006-01-02 15:04:05.999"
 }
