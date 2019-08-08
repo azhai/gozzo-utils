@@ -1,6 +1,7 @@
 package logging
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -32,19 +33,31 @@ var LogLevels = map[string]zapcore.Level{
 	"emergency": zapcore.FatalLevel, // zap中无emergency等级
 }
 
-var DefaultConfig = LogConfig{
+var DefaultConfig = LogConfig {
 	Encoding:   "console",
-	LeastLevel: "info",
+	LevelCase:  "capital",
 	TimeFormat: "2006-01-02 15:04:05",
-	Outputs:    []string{"stderr"},
+	MinLevel:   "info",
+	OutputMap:  map[string][]string{":":{"stderr"}},
 }
 
 func NewLogger(level, logdir string) *Logger {
 	cfg := DefaultConfig
-	cfg.LeastLevel = level
+	cfg.MinLevel = level
 	if logdir = strings.TrimSpace(logdir); logdir != "" {
-		cfg.ErrorFile = filepath.Join(logdir, "error.log")
-		cfg.Outputs = []string{filepath.Join(logdir, "access.log")}
+		cfg.OutputMap = map[string][]string{
+			":warn": {filepath.Join(logdir, "access.log")},
+			"error:": {filepath.Join(logdir, "error.log")},
+		}
+	}
+	return cfg.BuildSugar()
+}
+
+func NewFileLogger(cfg LogConfig, outs map[string]string) *Logger {
+	cfg.OutputMap = map[string][]string{}
+	for lvl, file := range outs {
+		key := fmt.Sprintf("%s:%s", lvl, lvl)
+		cfg.OutputMap[key] = []string{file}
 	}
 	return cfg.BuildSugar()
 }
@@ -52,32 +65,26 @@ func NewLogger(level, logdir string) *Logger {
 type LogConfig struct {
 	Development bool
 	Encoding    string
-	LeastLevel  string
+	LevelCase   string
 	TimeFormat  string
-	ErrorFile   string
-	Outputs     []string
+	MinLevel    string
+	OutputMap   map[string][]string
 }
 
 func (c LogConfig) BuildSugar() *Logger {
-	var encoder zapcore.Encoder
-	config := CustomEncoderConfig(c.TimeFormat)
-	if strings.ToLower(c.Encoding) == "json" {
-		encoder = zapcore.NewJSONEncoder(config)
-	} else {
-		encoder = zapcore.NewConsoleEncoder(config)
-	}
-
 	var cores []zapcore.Core
-	writer := GetWriteSyncer(c.Outputs...)
-	priority := GetLevelEnabler(c.LeastLevel, "")
-	if c.ErrorFile != "" {
-		errWriter := GetWriteSyncer(c.ErrorFile)
-		errPriority := GetLevelEnabler("error", "")
-		priority = GetLevelEnabler(c.LeastLevel, "warn")
-		cores = append(cores, zapcore.NewCore(encoder, errWriter, errPriority))
+	encoder := c.BuildEncoder()
+	for lvl, outs := range c.OutputMap {
+		writer := GetWriteSyncer(outs...)
+		pieces := strings.SplitN(lvl, ":", 2)
+		stop := strings.TrimSpace(pieces[1])
+		start := strings.TrimSpace(pieces[0])
+		if start == "" && c.MinLevel != "" {
+			start = c.MinLevel
+		}
+		priority := GetLevelEnabler(start, stop)
+		cores = append(cores, zapcore.NewCore(encoder, writer, priority))
 	}
-	cores = append(cores, zapcore.NewCore(encoder, writer, priority))
-
 	var opts []zap.Option
 	if c.Development {
 		opts = []zap.Option{zap.Development()}
@@ -87,12 +94,37 @@ func (c LogConfig) BuildSugar() *Logger {
 	return logger.Sugar()
 }
 
-func CustomEncoderConfig(layout string) zapcore.EncoderConfig {
+func (c LogConfig) BuildEncoder() zapcore.Encoder {
+	var encoder zapcore.Encoder
+	config := CustomEncoderConfig(c)
+	if strings.ToLower(c.Encoding) == "json" {
+		encoder = zapcore.NewJSONEncoder(config)
+	} else {
+		encoder = zapcore.NewConsoleEncoder(config)
+	}
+	return encoder
+}
+
+func CustomEncoderConfig(c LogConfig) zapcore.EncoderConfig {
 	ecfg := zap.NewProductionEncoderConfig()
 	ecfg.EncodeCaller = nil
-	ecfg.EncodeLevel = zapcore.CapitalLevelEncoder
-	ecfg.EncodeTime = func(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
-		enc.AppendString(t.Format(layout))
+	ecfg.EncodeTime = nil
+	if c.TimeFormat != "" {
+		ecfg.EncodeTime = func(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
+			enc.AppendString(t.Format(c.TimeFormat))
+		}
+	}
+	switch strings.ToLower(c.LevelCase) {
+	default:
+		ecfg.EncodeLevel = nil
+	case "cap", "capital":
+		ecfg.EncodeLevel = zapcore.CapitalLevelEncoder
+	case "color", "capcolor", "capitalcolor":
+		ecfg.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	case "low", "lower", "lowercase":
+		ecfg.EncodeLevel = zapcore.LowercaseLevelEncoder
+	case "lowcolor", "lowercolor", "lowercasecolor":
+		ecfg.EncodeLevel = zapcore.LowercaseColorLevelEncoder
 	}
 	return ecfg
 }

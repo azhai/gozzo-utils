@@ -224,6 +224,7 @@ func BenchmarkOpenIndex(b *testing.B) {
 
 	}
 }
+
 func BenchmarkFind(b *testing.B) {
 
 	b.StopTimer()

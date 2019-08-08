@@ -119,7 +119,7 @@ type JsonTime struct {
 	time.Time
 }
 
-func (t *JsonTime) MarshalJSON() ([]byte, error) {
+func (t JsonTime) MarshalJSON() ([]byte, error) {
 	var stamp = fmt.Sprintf("\"%s\"", t.Format(t.Layout))
 	return []byte(stamp), nil
 }

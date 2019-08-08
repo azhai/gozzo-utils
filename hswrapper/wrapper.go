@@ -38,37 +38,37 @@ func NewWrapper(host string, rport, wport int) *HandlerSocketWrapper {
 	return obj
 }
 
-func (this *HandlerSocketWrapper) Close() error {
-	if this.Socket.connected {
-		return this.Socket.Close()
+func (w *HandlerSocketWrapper) Close() error {
+	if w.Socket.connected {
+		return w.Socket.Close()
 	}
 	return nil
 }
 
-func (this *HandlerSocketWrapper) WrapIndex(dbName, table, indexName string, columns ...string) *HandlerSocketIndex {
-	this.lastNo++
+func (w *HandlerSocketWrapper) WrapIndex(dbName, table, indexName string, columns ...string) *HandlerSocketIndex {
+	w.lastNo++
 	if indexName == "" {
 		indexName = DefaultIndexName
 	}
 	index := &HandlerSocketIndex{
 		dbName: dbName, table: table, columns: columns, indexName: indexName,
 	}
-	index.Socket = this.Socket
-	index.indexNo = this.lastNo
+	index.Socket = w.Socket
+	index.indexNo = w.lastNo
 	index.Socket.OpenIndex(index.indexNo, dbName, table, indexName, columns...)
 	return index
 }
 
-func (this *HandlerSocketIndex) FindAll(limit int, offset int, oper string, where ...string) ([]HandlerSocketRow, error) {
-	rows, err := this.Socket.Find(this.indexNo, oper, limit, offset, where...)
+func (w *HandlerSocketIndex) FindAll(limit int, offset int, oper string, where ...string) ([]HandlerSocketRow, error) {
+	rows, err := w.Socket.Find(w.indexNo, oper, limit, offset, where...)
 	if err != nil {
 		panic(err)
 	}
 	return rows, err
 }
 
-func (this *HandlerSocketIndex) FindOne(oper string, where ...string) (HandlerSocketRow, error) {
-	rows, err := this.FindAll(1, 0, oper, where...)
+func (w *HandlerSocketIndex) FindOne(oper string, where ...string) (HandlerSocketRow, error) {
+	rows, err := w.FindAll(1, 0, oper, where...)
 	if rows == nil || len(rows) == 0 {
 		err = errors.New("Nothing found")
 		return HandlerSocketRow{}, err
@@ -76,35 +76,35 @@ func (this *HandlerSocketIndex) FindOne(oper string, where ...string) (HandlerSo
 	return rows[0], err
 }
 
-func (this *HandlerSocketIndex) DeleteString(limit int, oper string, where []string) (int, error) {
-	return this.Socket.Modify(this.indexNo, oper, limit, 0, "D", where, nil)
+func (w *HandlerSocketIndex) DeleteString(limit int, oper string, where []string) (int, error) {
+	return w.Socket.Modify(w.indexNo, oper, limit, 0, "D", where, nil)
 }
 
-func (this *HandlerSocketIndex) Delete(limit int, oper string, where []interface{}) (int, error) {
+func (w *HandlerSocketIndex) Delete(limit int, oper string, where []interface{}) (int, error) {
 	var conds []string
 	for _, wh := range where {
 		conds = append(conds, ToString(wh))
 	}
-	return this.DeleteString(limit, oper, conds)
+	return w.DeleteString(limit, oper, conds)
 }
 
-func (this *HandlerSocketIndex) InsertString(vals ...string) error {
-	return this.Socket.Insert(this.indexNo, vals...)
+func (w *HandlerSocketIndex) InsertString(vals ...string) error {
+	return w.Socket.Insert(w.indexNo, vals...)
 }
 
-func (this *HandlerSocketIndex) Insert(vals ...interface{}) error {
+func (w *HandlerSocketIndex) Insert(vals ...interface{}) error {
 	var row []string
 	for _, val := range vals {
 		row = append(row, ToString(val))
 	}
-	return this.InsertString(row...)
+	return w.InsertString(row...)
 }
 
-func (this *HandlerSocketIndex) UpdateString(limit int, oper string, where []string, vals ...string) (int, error) {
-	return this.Socket.Modify(this.indexNo, oper, limit, 0, "U", where, vals)
+func (w *HandlerSocketIndex) UpdateString(limit int, oper string, where []string, vals ...string) (int, error) {
+	return w.Socket.Modify(w.indexNo, oper, limit, 0, "U", where, vals)
 }
 
-func (this *HandlerSocketIndex) Update(limit int, oper string, where []interface{}, vals ...interface{}) (int, error) {
+func (w *HandlerSocketIndex) Update(limit int, oper string, where []interface{}, vals ...interface{}) (int, error) {
 	var row, conds []string
 	for _, val := range vals {
 		row = append(row, ToString(val))
@@ -112,7 +112,7 @@ func (this *HandlerSocketIndex) Update(limit int, oper string, where []interface
 	for _, wh := range where {
 		conds = append(conds, ToString(wh))
 	}
-	return this.UpdateString(limit, oper, conds, row...)
+	return w.UpdateString(limit, oper, conds, row...)
 }
 
 func ToString(val interface{}) string {
