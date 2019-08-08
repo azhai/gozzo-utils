@@ -23,9 +23,9 @@ type RedisPool struct {
 }
 
 func NewRedisPool(addr, passwd string, db int) *RedisPool {
-	obj := &RedisPool{addr: addr, passwd: passwd, db: db}
-	obj.Reset(3, 5) //retryTimes=3, maxIdle=5
-	return obj
+	pool := &RedisPool{addr: addr, passwd: passwd, db: db}
+	pool.Reset(3, 5) //retryTimes=3, maxIdle=5
+	return pool
 }
 
 ////////////////////////////////////////////////////////////

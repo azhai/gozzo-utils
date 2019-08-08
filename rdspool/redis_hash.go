@@ -1,40 +1,52 @@
 package rdspool
 
 import (
-	"strconv"
-
 	"github.com/gomodule/redigo/redis"
 )
 
 type RedisHash struct {
-	Inst Redis
-	name string
-	ttl  string
+	Inst    Redis
+	name    string
+	timeout int
 }
 
-func NewRedisHash(inst Redis, name string, timeout int64) *RedisHash {
-	ttl := strconv.FormatInt(timeout, 10)
-	return &RedisHash{Inst: inst, name: name, ttl: ttl}
+func NewRedisHash(inst Redis, name string, timeout int) *RedisHash {
+	return &RedisHash{Inst: inst, name: name, timeout: timeout}
 }
 
 func (rh *RedisHash) DoWith(cmd string, args ...interface{}) (interface{}, error) {
 	return DoWithKey(rh.Inst, cmd, rh.name, args...)
 }
 
-func (rh *RedisHash) Set(key, value string) (int, error) {
-	reply, err := rh.Inst.Do("HSET", rh.name, key, value)
-	if err == nil {
-		rh.Inst.Do("SETTTL", rh.name, rh.ttl)
+// -1=无限 -2=不存在 -3=出错
+func (rh *RedisHash) GetTimeout() int {
+	if sec, err := redis.Int(rh.DoWith("TTL")); err == nil {
+		return sec
 	}
-	return redis.Int(reply, err)
+	return -3
 }
 
-func (rh *RedisHash) Get(key string) (string, error) {
-	reply, err := rh.Inst.Do("HGET", rh.name, key)
-	return redis.String(reply, err)
+func (rh *RedisHash) Set(key string, value interface{}) (int, error) {
+	defer rh.DoWith("EXPIRE", rh.timeout)
+	return redis.Int(rh.DoWith("HSET", key, value))
 }
 
-func (rh *RedisHash) GetAll() (map[string]string, error) {
-	reply, err := rh.Inst.Do("HGETALL", rh.name)
-	return redis.StringMap(reply, err)
+func (rh *RedisHash) Get(key string) (interface{}, error) {
+	return rh.DoWith("HGET", key)
+}
+
+func (rh *RedisHash) GetString(key string) (string, error) {
+	return redis.String(rh.Get(key))
+}
+
+func (rh *RedisHash) GetInt(key string) (int, error) {
+	return redis.Int(rh.Get(key))
+}
+
+func (rh *RedisHash) GetAll() (interface{}, error) {
+	return rh.DoWith("HGETALL")
+}
+
+func (rh *RedisHash) GetAllString(key string) (map[string]string, error) {
+	return redis.StringMap(rh.GetAll())
 }
