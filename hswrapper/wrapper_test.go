@@ -1,5 +1,14 @@
+package hswrapper
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 /*
+go test -v --run=Wrap
+
 CREATE TABLE `people_females`  (
   `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
   `name` varchar(128) NOT NULL DEFAULT '',
@@ -15,21 +24,14 @@ INSERT INTO `people_females` VALUES (3, 'Emily', 171, '1985-05-01 00:00:00');
 INSERT INTO `people_females` VALUES (4, 'Grace', 175, '1987-07-05 00:00:00');
 */
 
-package hswrapper
-
-import (
-	"testing"
-
-	"github.com/stretchr/testify/assert"
+var (
+	hsServer = "192.168.2.134"
+	dbName   = "test"
+	tableName = "people_females"
+	userName  = "Emily"
 )
 
-func TestWrap(t *testing.T) {
-	var (
-		hsServer = "192.168.2.134"
-		dbName   = "test"
-		tableName = "people_females"
-		userName  = "Emily"
-	)
+func TestWrapSelect(t *testing.T) {
 	var index *HandlerSocketIndex
 	hs := NewWrapper(hsServer, 9998, 9999)
 	defer hs.Close()
@@ -47,4 +49,51 @@ func TestWrap(t *testing.T) {
 	row, _ := index.FindOne("=", userName)
 	assert.Equal(t, "Emily", row.Data["name"])
 	assert.Equal(t, "1985-05-01 00:00:00", row.Data["birth"])
+}
+
+func _TestWrapUpdate(t *testing.T) {
+	var index *HandlerSocketIndex
+	hs := NewWrapper(hsServer, 9998, 9999)
+	defer hs.Close()
+
+	columns4 := []string{"id", "name", "height", "birth"}
+	index = hs.WrapIndex(dbName, tableName, "", columns4...)
+
+	n, err := index.Update(1, "=", []interface{}{"Emily"}, 3, "Emily", 167, "1985-06-06 00:00:00")
+	assert.NoError(t, err)
+	assert.Equal(t, 1, n)
+
+	columns3 := []string{"name", "height", "birth"}
+	index = hs.WrapIndex(dbName, tableName, "name", columns3...)
+	row, _ := index.FindOne("=", userName)
+	assert.Equal(t, "Emily", row.Data["name"])
+	assert.Equal(t, 167, row.Data["height"])
+	assert.Equal(t, "1985-06-06 00:00:00", row.Data["birth"])
+}
+
+func TestWrapDelete(t *testing.T) {
+	var index *HandlerSocketIndex
+	hs := NewWrapper(hsServer, 9998, 9999)
+	defer hs.Close()
+
+	columns4 := []string{"id", "name", "height", "birth"}
+	index = hs.WrapIndex(dbName, tableName, "", columns4...)
+	n, err := index.Delete(5, ">=", []interface{}{1})
+	assert.NoError(t, err)
+	assert.Equal(t, 4, n)
+}
+
+func TestWrapInsert(t *testing.T) {
+	var index *HandlerSocketIndex
+	hs := NewWrapper(hsServer, 9998, 9999)
+	defer hs.Close()
+
+	columns4 := []string{"id", "name", "height", "birth"}
+	index = hs.WrapIndex(dbName, tableName, "", columns4...)
+
+	var err error
+	for i := 1; i <= 4; i++ {
+		err = index.Insert(i, "test", 123, "2000-01-01 00:00:00")
+		assert.NoError(t, err)
+	}
 }

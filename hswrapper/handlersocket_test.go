@@ -103,7 +103,7 @@ func TestWrite(t *testing.T) {
 	}
 
 	// Chinese Data
-	err = hs.Insert(3, "chinese", "中文測試資料")
+	err = hs.Insert(3, "chinese", "中文测试")
 	if err != nil {
 		t.Error(err)
 	}
