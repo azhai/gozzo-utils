@@ -12,7 +12,6 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-
 */
 
 /*
@@ -26,35 +25,14 @@ ENGINE = InnoDB DEFAULT CHARSET=utf8;
 package hswrapper
 
 import (
-	"fmt"
 	"strconv"
 	"testing"
 )
 
-var DbName = "test"
-
-func Example() {
-	var (
-		tableName = "people"
-		userName  = "Gordon"
-	)
-	var index *HandlerSocketIndex
-	hs := NewWrapper("127.0.0.1", 9998, 9999)
-	defer hs.Close()
-
-	columns4 := []string{"id", "name", "age", "dob"}
-	index = hs.WrapIndex(DbName, tableName, "", columns4...)
-
-	rows, _ := index.FindAll(2, 0, "<=", "3")
-	for i := range rows {
-		fmt.Println(rows[i].Data)
-	}
-
-	columns3 := []string{"name", "age", "dob"}
-	index = hs.WrapIndex(DbName, tableName, "name_key", columns3...)
-	row, _ := index.FindOne("=", userName)
-	fmt.Printf("%s %s\n", row.Data["name"], row.Data["dob"])
-}
+var (
+	HsServer = "192.168.2.134"
+	DbName   = "test"
+)
 
 func TestOpenIndex(t *testing.T) {
 
@@ -64,7 +42,7 @@ func TestOpenIndex(t *testing.T) {
 	hs.Logging = true
 
 	// Connect to database
-	hs.Connect("127.0.0.1", 9998, 9999)
+	hs.Connect(HsServer, 9998, 9999)
 	defer hs.Close()
 
 	hs.OpenIndex(1, DbName, "kvs", "PRIMARY", "id", "content")
@@ -77,7 +55,7 @@ func TestDelete(t *testing.T) {
 	// Enable logging
 	hs.Logging = true
 	// Connect to database
-	hs.Connect("127.0.0.1", 9998, 9999)
+	hs.Connect(HsServer, 9998, 9999)
 	defer hs.Close()
 	// id is varchar(255), content is text
 	hs.OpenIndex(3, DbName, "kvs", "PRIMARY", "id", "content")
@@ -102,7 +80,7 @@ func TestWrite(t *testing.T) {
 	// Enable logging
 	hs.Logging = true
 	// Connect to database
-	hs.Connect("127.0.0.1", 9998, 9999)
+	hs.Connect(HsServer, 9998, 9999)
 	defer hs.Close()
 	// id is varchar(255), content is text
 	hs.OpenIndex(3, DbName, "kvs", "PRIMARY", "id", "content")
@@ -138,7 +116,7 @@ func TestModify(t *testing.T) {
 	// Enable logging
 	hs.Logging = true
 	// Connect to database
-	hs.Connect("127.0.0.1", 9998, 9999)
+	hs.Connect(HsServer, 9998, 9999)
 	defer hs.Close()
 	// id is varchar(255), content is text
 	hs.OpenIndex(3, DbName, "kvs", "PRIMARY", "id", "content")
@@ -190,7 +168,7 @@ func TestRead(t *testing.T) {
 	// Enable logging
 	hs.Logging = true
 	// Connect to database
-	hs.Connect("127.0.0.1", 9998, 9999)
+	hs.Connect(HsServer, 9998, 9999)
 	defer hs.Close()
 
 	hs.OpenIndex(1, DbName, "kvs", "PRIMARY", "id", "content")
@@ -217,7 +195,7 @@ func BenchmarkOpenIndex(b *testing.B) {
 	b.StopTimer()
 	hs := New()
 	defer hs.Close()
-	hs.Connect("127.0.0.1", 9998, 9999)
+	hs.Connect(HsServer, 9998, 9999)
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
 		hs.OpenIndex(1, DbName, "kvs", "PRIMARY", "id", "content")
@@ -230,7 +208,7 @@ func BenchmarkFind(b *testing.B) {
 	b.StopTimer()
 	hs := New()
 	defer hs.Close()
-	hs.Connect("127.0.0.1", 9998, 9999)
+	hs.Connect(HsServer, 9998, 9999)
 	hs.OpenIndex(1, DbName, "kvs", "PRIMARY", "id", "content")
 	b.StartTimer()
 
