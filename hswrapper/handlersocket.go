@@ -137,7 +137,6 @@ func (handlerSocket *HandlerSocket) OpenIndex(index int, dbName string, tableNam
 }
 
 /*
-
 ----------------------------------------------------------------------------
 Updating/Deleting data
 
