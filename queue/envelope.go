@@ -5,6 +5,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/azhai/gozzo-utils/common"
+	"github.com/azhai/gozzo-utils/logging"
 	"github.com/streadway/amqp"
 )
 
@@ -35,6 +37,7 @@ func IsValidateError(err error) bool {
 
 // 消息队列
 type MessageQueue struct {
+	logger   logging.ILogger
 	Input    chan *Envelope
 	Handlers map[string]RecvFunc
 }
@@ -44,6 +47,10 @@ func NewMessageQueue() *MessageQueue {
 		Input:    make(chan *Envelope),
 		Handlers: make(map[string]RecvFunc),
 	}
+}
+
+func (mq *MessageQueue) SetLogger(logger logging.ILogger) {
+	mq.logger = logger
 }
 
 func (mq *MessageQueue) AddRoutings(key, dst string, count int) map[string]string {
@@ -66,6 +73,10 @@ func (mq *MessageQueue) AddMessage(exchName, routing string, msg *Message) {
 	if msg != nil {
 		evp := &Envelope{Exchange: exchName, RoutingKey: routing, Message: msg}
 		mq.Input <- evp
+		if mq.logger != nil {
+			body := common.Bin2Hex(msg.Body)
+			mq.logger.Debugf("%s\t%s\t%+v\t%s", exchName, routing, msg.Headers, body)
+		}
 	}
 }
 
@@ -88,6 +99,9 @@ func (mq *MessageQueue) Publish(ch *Channel, input chan *Envelope, retries int) 
 			err = ch.PushMessage(evp.Exchange, evp.RoutingKey, evp.Message)
 			if err != nil && !IsValidateError(err) {
 				errch <- err
+				if mq.logger != nil {
+					mq.logger.Error(err.Error())
+				}
 			}
 		case err = <-errch:
 			if retries > 0 {
@@ -99,6 +113,9 @@ func (mq *MessageQueue) Publish(ch *Channel, input chan *Envelope, retries int) 
 			time.Sleep(1 * time.Second)
 			if err = ch.Reconnect(false); err != nil {
 				errch <- err
+				if mq.logger != nil {
+					mq.logger.Error(err.Error())
+				}
 			}
 		}
 	}
@@ -127,6 +144,9 @@ func (mq *MessageQueue) Subscribe(ch *Channel, queName string, autoAck bool, rec
 			output, err = ch.ConsumeQueue(queName, ctag, autoAck)
 			if err != nil {
 				ch.Close()
+				if mq.logger != nil {
+					mq.logger.Error(err.Error())
+				}
 				time.Sleep(1 * time.Second)
 				err = ch.Reconnect(false)
 			}

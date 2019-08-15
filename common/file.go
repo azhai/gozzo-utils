@@ -66,20 +66,36 @@ func OpenFile(path string, readonly, append bool) (fp *os.File, size int64, err 
 	return
 }
 
-// 按分割方法读取文件全部
+
+func ReadLines(path string) ([]string, error) {
+	return ReadFile(path, bufio.ScanLines)
+}
+
 func ReadFile(path string, split bufio.SplitFunc) ([]string, error) {
+	var result []string
+	output := make(chan []byte)
+	go func(){
+		for line := range output {
+			result = append(result, string(line))
+		}
+	}()
+	err := ReadFileTo(path, split, output)
+	return result, err
+}
+
+// 按分割方法读取文件全部
+func ReadFileTo(path string, split bufio.SplitFunc, output chan<- []byte) error {
 	fp, _, err := OpenFile(path, true, false)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer fp.Close()
-	var result []string
 	scanner := bufio.NewScanner(fp)
 	scanner.Split(split)
 	for scanner.Scan() {
-		result = append(result, scanner.Text())
+		output <- scanner.Bytes()
 	}
-	return result, scanner.Err()
+	return scanner.Err()
 }
 
 // 读取文件末尾若干字节

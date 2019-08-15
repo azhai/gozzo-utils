@@ -25,8 +25,10 @@ func GetNumber(data string) int64 {
 // 分拆为多个部分，并对每一段作处理
 func SplitPieces(text, sep string, conv ConvAction) []string {
 	pieces := strings.SplitN(text, sep, -1)
-	for i, p := range pieces {
-		pieces[i] = conv(p)
+	if conv != nil {
+		for i, p := range pieces {
+			pieces[i] = conv(p)
+		}
 	}
 	return pieces
 }
