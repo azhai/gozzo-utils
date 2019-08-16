@@ -1,0 +1,128 @@
+package cryptogy
+
+import (
+	"crypto"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/sha256"
+	"crypto/x509"
+	"encoding/pem"
+	"errors"
+)
+
+/*
+// 可通过openssl产生
+// openssl genrsa -out rsa_private_key.pem 1024
+var privKey = []byte(`
+-----BEGIN RSA PRIVATE KEY-----
+MIICXQIBAAKBgQDfw1/P15GQzGGYvNwVmXIGGxea8Pb2wJcF7ZW7tmFdLSjOItn9
+kvUsbQgS5yxx+f2sAv1ocxbPTsFdRc6yUTJdeQolDOkEzNP0B8XKm+Lxy4giwwR5
+LJQTANkqe4w/d9u129bRhTu/SUzSUIr65zZ/s6TUGQD6QzKY1Y8xS+FoQQIDAQAB
+AoGAbSNg7wHomORm0dWDzvEpwTqjl8nh2tZyksyf1I+PC6BEH8613k04UfPYFUg1
+0F2rUaOfr7s6q+BwxaqPtz+NPUotMjeVrEmmYM4rrYkrnd0lRiAxmkQUBlLrCBiF
+u+bluDkHXF7+TUfJm4AZAvbtR2wO5DUAOZ244FfJueYyZHECQQD+V5/WrgKkBlYy
+XhioQBXff7TLCrmMlUziJcQ295kIn8n1GaKzunJkhreoMbiRe0hpIIgPYb9E57tT
+/mP/MoYtAkEA4Ti6XiOXgxzV5gcB+fhJyb8PJCVkgP2wg0OQp2DKPp+5xsmRuUXv
+720oExv92jv6X65x631VGjDmfJNb99wq5QJBAMSHUKrBqqizfMdOjh7z5fLc6wY5
+M0a91rqoFAWlLErNrXAGbwIRf3LN5fvA76z6ZelViczY6sKDjOxKFVqL38ECQG0S
+pxdOT2M9BM45GJjxyPJ+qBuOTGU391Mq1pRpCKlZe4QtPHioyTGAAMd4Z/FX2MKb
+3in48c0UX5t3VjPsmY0CQQCc1jmEoB83JmTHYByvDpc8kzsD8+GmiPVrausrjj4p
+y2DQpGmUic2zqCxl6qXMpBGtFEhrUbKhOiVOJbRNGvWW
+-----END RSA PRIVATE KEY-----
+`)
+
+// openssl rsa -in rsa_private_key.pem -pubout -out rsa_public_key.pem
+var pubKey = []byte(`
+-----BEGIN PUBLIC KEY-----
+MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDfw1/P15GQzGGYvNwVmXIGGxea
+8Pb2wJcF7ZW7tmFdLSjOItn9kvUsbQgS5yxx+f2sAv1ocxbPTsFdRc6yUTJdeQol
+DOkEzNP0B8XKm+Lxy4giwwR5LJQTANkqe4w/d9u129bRhTu/SUzSUIr65zZ/s6TU
+GQD6QzKY1Y8xS+FoQQIDAQAB
+-----END PUBLIC KEY-----
+`)
+*/
+
+// RSA加密，支持模式PKCS#1 v1.5，不支持OAEP/PSS
+// 用法: NewRSACipher(privKey, pubKey).Sign(crypto.SHA256, []byte("hello world"))
+type RSACipher struct {
+	privKey, pubKey []byte
+}
+
+func NewRSACipher(privKey, pubKey string) RSACipher {
+	return RSACipher{privKey:[]byte(privKey), pubKey:[]byte(pubKey)}
+}
+
+// 解密pem格式的公钥/私钥
+func (c RSACipher) GetBlock(key []byte, errmsg string) (*pem.Block, error) {
+	var err error
+	block, _ := pem.Decode(key)
+	if block == nil {
+		err = errors.New(errmsg)
+	}
+	return block, err
+}
+
+func (c RSACipher) GetPublicKey() (*rsa.PublicKey, error) {
+	block, err := c.GetBlock(c.pubKey, "public key error !")
+	if err != nil {
+		return nil, err
+	}
+	// 解析公钥
+	face, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		return nil, err
+	}
+	// 类型断言
+	return face.(*rsa.PublicKey), nil
+}
+
+func (c RSACipher) GetPrivateKey() (*rsa.PrivateKey, error) {
+	block, err := c.GetBlock(c.privKey, "private key error!")
+	if err != nil {
+		return nil, err
+	}
+	// 解析PKCS1格式的私钥
+	key, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	if err != nil {
+		return nil, err
+	}
+	return key, nil
+}
+
+// 加密
+func (c RSACipher) Encrypt(origData []byte) ([]byte, error) {
+	key, err := c.GetPublicKey()
+	if err != nil {
+		return nil, err
+	}
+	return rsa.EncryptPKCS1v15(rand.Reader, key, origData)
+}
+
+// 解密
+func (c RSACipher) Decrypt(cipherText []byte) ([]byte, error) {
+	key, err := c.GetPrivateKey()
+	if err != nil {
+		return nil, err
+	}
+	return rsa.DecryptPKCS1v15(rand.Reader, key, cipherText)
+}
+
+// 签名
+func (c RSACipher) Sign(hash crypto.Hash, msg []byte) ([]byte, error) {
+	key, err := c.GetPrivateKey()
+	if err != nil {
+		return nil, err
+	}
+	hashed := sha256.Sum256(msg)
+	return rsa.SignPKCS1v15(rand.Reader, key, hash, hashed[:])
+}
+
+// 校验
+func (c RSACipher) Verify(hash crypto.Hash, msg, sig []byte) error {
+	key, err := c.GetPublicKey()
+	if err != nil {
+		return err
+	}
+	hashed := sha256.Sum256(msg)
+	return rsa.VerifyPKCS1v15(key, hash, hashed[:], sig)
+}
