@@ -3,9 +3,9 @@ package queue
 import "github.com/streadway/amqp"
 
 type Channel struct {
+	conn      *amqp.Connection
 	ServerUrl string
 	LastError error
-	conn      *amqp.Connection
 	*amqp.Channel
 }
 

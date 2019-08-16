@@ -97,8 +97,10 @@ func (mq *MessageQueue) Publish(ch *Channel, input chan *Envelope, retries int) 
 		select {
 		case evp = <-input:
 			err = ch.PushMessage(evp.Exchange, evp.RoutingKey, evp.Message)
-			if err != nil && !IsValidateError(err) {
-				errch <- err
+			if err != nil {
+				if !IsValidateError(err) {
+					errch <- err
+				}
 				if mq.logger != nil {
 					mq.logger.Error(err.Error())
 				}
@@ -160,10 +162,19 @@ func (mq *MessageQueue) Subscribe(ch *Channel, queName string, autoAck bool, rec
 	return
 }
 
-func (mq *MessageQueue) RunAll(ch *Channel, retries int) {
+func (mq *MessageQueue) RunAll(ch *Channel, retries int) (err error) {
+	if ch.LastError != nil {
+		if err = ch.Reconnect(true); err != nil {
+			if mq.logger != nil {
+				mq.logger.Error(err.Error())
+			}
+			ch.LastError = err
+			return
+		}
+	}
 	for queName, receive := range mq.Handlers {
 		go mq.Subscribe(ch, queName, true, receive)
 	}
 	pub := NewChannel(ch.ServerUrl)
-	mq.Publish(pub, mq.Input, retries)
+	return mq.Publish(pub, mq.Input, retries)
 }

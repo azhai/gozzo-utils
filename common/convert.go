@@ -34,11 +34,13 @@ func SplitPieces(text, sep string, conv ConvAction) []string {
 }
 
 // 高精度小数
+// 例如 123.45 表示为 Decimal{Value:int64(12345), Precision:2}
 type Decimal struct {
 	Value     int64 // 扩大后成为整数
 	Precision int   // 小数点后位数，限制15以内
 }
 
+// 使用方法：NewDecimal(123.45, 2)
 func NewDecimal(value float64, prec int) *Decimal {
 	d := &Decimal{}
 	d.SetPrecision(prec)
@@ -46,6 +48,7 @@ func NewDecimal(value float64, prec int) *Decimal {
 	return d
 }
 
+// 使用方法：ParseDecimal("123.45", 2)
 func ParseDecimal(text string, prec int) *Decimal {
 	d := &Decimal{}
 	d.SetPrecision(prec)

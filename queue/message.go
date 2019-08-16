@@ -9,6 +9,25 @@ import (
 	"github.com/streadway/amqp"
 )
 
+/*
+amqp.Table stores user supplied fields of the following types:
+bool
+byte
+float32
+float64
+int
+int16
+int32
+int64
+nil
+string
+time.Time
+amqp.Decimal
+amqp.Table
+[]byte
+[]interface{} - containing above types
+*/
+
 // 消息
 type Message struct {
 	Body    []byte
