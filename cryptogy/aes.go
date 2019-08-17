@@ -58,8 +58,8 @@ type AESCipher struct {
 	cipher.Block
 }
 
-func NewAESCipher(mode string, key []byte) (AESCipher, error) {
-	c := AESCipher{modeName: strings.ToUpper(mode)}
+func NewAESCipher(mode string, key []byte) (*AESCipher, error) {
+	c := &AESCipher{modeName: strings.ToUpper(mode)}
 	block, err := aes.NewCipher(key)
 	if err == nil {
 		c.Block = block
@@ -68,7 +68,7 @@ func NewAESCipher(mode string, key []byte) (AESCipher, error) {
 	return c, err
 }
 
-func (c AESCipher) SetPaddingFunc(name string) {
+func (c *AESCipher) SetPaddingFunc(name string) {
 	switch strings.ToUpper(name){
 	case "0", "ZERO":
 		c.Padding = ZeroPadding
@@ -82,7 +82,7 @@ func (c AESCipher) SetPaddingFunc(name string) {
 	}
 }
 
-func (c AESCipher) GetStream(isDecrypt bool) cipher.Stream {
+func (c *AESCipher) GetStream(isDecrypt bool) cipher.Stream {
 	switch c.modeName {
 	default:
 		return nil
@@ -99,15 +99,15 @@ func (c AESCipher) GetStream(isDecrypt bool) cipher.Stream {
 	}
 }
 
-func (c AESCipher) GetEncrypter() cipher.BlockMode {
+func (c *AESCipher) GetEncrypter() cipher.BlockMode {
 	return cipher.NewCBCEncrypter(c.Block, c.iv)
 }
 
-func (c AESCipher) GetDecrypter() cipher.BlockMode {
+func (c *AESCipher) GetDecrypter() cipher.BlockMode {
 	return cipher.NewCBCDecrypter(c.Block, c.iv)
 }
 
-func (c AESCipher) Encrypt(origData []byte) ([]byte, error) {
+func (c *AESCipher) Encrypt(origData []byte) ([]byte, error) {
 	if c.Padding != nil {
 		origData = c.Padding(origData, c.BlockSize())
 	}
@@ -120,7 +120,7 @@ func (c AESCipher) Encrypt(origData []byte) ([]byte, error) {
 	return cipherText, nil
 }
 
-func (c AESCipher) Decrypt(cipherText []byte) ([]byte, error) {
+func (c *AESCipher) Decrypt(cipherText []byte) ([]byte, error) {
 	origData := make([]byte, len(cipherText))
 	if c.modeName == "CBC" {
 		c.GetDecrypter().CryptBlocks(origData, cipherText)

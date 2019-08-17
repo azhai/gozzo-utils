@@ -10,7 +10,7 @@ type MapFunc func(item interface{}) (interface{}, error)
 type ReduceFunc func(a, b interface{}) (interface{}, error)
 
 // 将字符串数组转为一般数组
-func ToList(data []string) []interface{} {
+func StrToList(data []string) []interface{} {
 	result := make([]interface{}, len(data))
 	for i, v := range data {
 		result[i] = v
@@ -19,7 +19,7 @@ func ToList(data []string) []interface{} {
 }
 
 func SprintfString(tpl string, data []string) string {
-	return fmt.Sprintf(tpl, ToList(data)...)
+	return fmt.Sprintf(tpl, StrToList(data)...)
 }
 
 func SprintfSplit(tpl string, data, sep string) string {

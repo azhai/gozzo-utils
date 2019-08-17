@@ -2,18 +2,32 @@ package cryptogy
 
 import (
 	"crypto"
-	"crypto/rand"
-	"crypto/rsa"
+	"crypto/md5"
 	"crypto/sha256"
-	"crypto/x509"
-	"encoding/pem"
-	"errors"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
-/*
-// 可通过openssl产生
-// openssl genrsa -out rsa_private_key.pem 4096
-var privKey = `
+var (
+	origDatas = []string{
+		"",
+		"Hello World",
+		`
+// 计算年龄
+func CalcAge(birthday string) int {
+    birth, err := time.Parse("2006-01-02", birthday)
+    if err != nil {
+        return -1
+    }
+    hours := time.Since(birth).Hours()
+    return int(math.Round(hours / 365 / 24))
+}
+`,
+	}
+
+	privKey = `
 -----BEGIN RSA PRIVATE KEY-----
 MIIJJwIBAAKCAgEAtRs0cDbOgZwe7zgJPo11lQyHrRrLDcO00LS2FH9NhdlQ8F/W
 h6T6HUuuQhjVoKST3nqx3RE9mkzomw8tHdnA0AU0THXLPptDshsclxZJZXzo9HZu
@@ -66,9 +80,7 @@ q5i/VIDK1iNrSlvhuduIhJhr0ynYx/EzF8LezEyOn0LSyo+cjzMDBcwOpiR7TqVv
 thEe8UVRGBhF8TNyNAlKP35SBU/rhQtaKNf/uGv5pkRRAZt6xm4fOxUUVA==
 -----END RSA PRIVATE KEY-----
 `
-
-// openssl rsa -in rsa_private_key.pem -pubout -out rsa_public_key.pem
-var pubKey = `
+	pubKey = `
 -----BEGIN PUBLIC KEY-----
 MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAtRs0cDbOgZwe7zgJPo11
 lQyHrRrLDcO00LS2FH9NhdlQ8F/Wh6T6HUuuQhjVoKST3nqx3RE9mkzomw8tHdnA
@@ -84,89 +96,64 @@ Hb+zy4oLV7vzwAk8fKB+mbDhv62Onb7vkOtLg7uiTvO5AHIGBYsxo92MIQG/gQop
 UqWHmhg2z2Itx8B0m9cORIsCAwEAAQ==
 -----END PUBLIC KEY-----
 `
-*/
+)
 
-// RSA加密，支持模式PKCS#1 v1.5，不支持OAEP/PSS
-// 用法: NewRSACipher(privKey, pubKey).Sign(crypto.SHA256, []byte("hello world"))
-type RSACipher struct {
-	privKey, pubKey []byte
+func TestHmacMd5(t *testing.T) {
+	key := time.Now().String()
+	h := NewMacHash(md5.New).SetKey(key)
+	for i, data := range origDatas {
+		signed := h.Sign(data)
+		assert.True(t, h.Verify(data, signed))
+		t.Logf("MD5(data%d) = (char%d) %s", i, len(signed), signed)
+	}
 }
 
-func NewRSACipher(privKey, pubKey string) RSACipher {
-	return RSACipher{privKey:[]byte(privKey), pubKey:[]byte(pubKey)}
+func TestHmacSha256(t *testing.T) {
+	key := time.Now().String()
+	h := NewMacHash(sha256.New).SetKey(key)
+	for i, data := range origDatas {
+		signed := h.Sign(data)
+		assert.True(t, h.Verify(data, signed))
+		t.Logf("SHA256(data%d) = (char%d) %s", i, len(signed), signed)
+	}
 }
 
-// 解密pem格式的公钥/私钥
-func (c RSACipher) GetBlock(key []byte, errmsg string) (*pem.Block, error) {
-	var err error
-	block, _ := pem.Decode(key)
-	if block == nil {
-		err = errors.New(errmsg)
+func TestAesCbcPkcs5Encrypt(t *testing.T) {
+	key := time.Now().String()
+	c, err := NewAESCipher("CBC", []byte(key[:32]))
+	assert.NoError(t, err)
+	c.SetPaddingFunc("PKCS5")
+	var plain, secret []byte
+	for i, data := range origDatas {
+		secret, err = c.Encrypt([]byte(data))
+		assert.NoError(t, err)
+		plain, err = c.Decrypt(secret)
+		assert.NoError(t, err)
+		assert.Equal(t, plain, []byte(data))
+		t.Logf("AES(data%d) = (bin%d) %x", i, len(secret), secret)
 	}
-	return block, err
 }
 
-func (c RSACipher) GetPublicKey() (*rsa.PublicKey, error) {
-	block, err := c.GetBlock(c.pubKey, "public key error !")
-	if err != nil {
-		return nil, err
+func TestRsaPkcs1v15Encrypt(t *testing.T) {
+	c := NewRSACipher(privKey, pubKey)
+	var plain []byte
+	for i, data := range origDatas {
+		secret, err := c.Encrypt([]byte(data))
+		assert.NoError(t, err)
+		plain, err = c.Decrypt(secret)
+		assert.NoError(t, err)
+		assert.Equal(t, plain, []byte(data))
+		t.Logf("RSA(data%d) = (bin%d) %x", i, len(secret), secret)
 	}
-	// 解析公钥
-	face, err := x509.ParsePKIXPublicKey(block.Bytes)
-	if err != nil {
-		return nil, err
-	}
-	// 类型断言
-	return face.(*rsa.PublicKey), nil
 }
 
-func (c RSACipher) GetPrivateKey() (*rsa.PrivateKey, error) {
-	block, err := c.GetBlock(c.privKey, "private key error!")
-	if err != nil {
-		return nil, err
+func TestRsaSha256Sign(t *testing.T) {
+	c := NewRSACipher(privKey, pubKey)
+	for i, data := range origDatas {
+		signed, err := c.Sign(crypto.SHA256, []byte(data))
+		assert.NoError(t, err)
+		err = c.Verify(crypto.SHA256, []byte(data), signed)
+		assert.NoError(t, err)
+		t.Logf("RSA-SHA256(data%d) = (bin%d) %x", i, len(signed), signed)
 	}
-	// 解析PKCS1格式的私钥
-	key, err := x509.ParsePKCS1PrivateKey(block.Bytes)
-	if err != nil {
-		return nil, err
-	}
-	return key, nil
-}
-
-// 加密
-func (c RSACipher) Encrypt(origData []byte) ([]byte, error) {
-	key, err := c.GetPublicKey()
-	if err != nil {
-		return nil, err
-	}
-	return rsa.EncryptPKCS1v15(rand.Reader, key, origData)
-}
-
-// 解密
-func (c RSACipher) Decrypt(cipherText []byte) ([]byte, error) {
-	key, err := c.GetPrivateKey()
-	if err != nil {
-		return nil, err
-	}
-	return rsa.DecryptPKCS1v15(rand.Reader, key, cipherText)
-}
-
-// 签名
-func (c RSACipher) Sign(hash crypto.Hash, msg []byte) ([]byte, error) {
-	key, err := c.GetPrivateKey()
-	if err != nil {
-		return nil, err
-	}
-	hashed := sha256.Sum256(msg)
-	return rsa.SignPKCS1v15(rand.Reader, key, hash, hashed[:])
-}
-
-// 校验
-func (c RSACipher) Verify(hash crypto.Hash, msg, sig []byte) error {
-	key, err := c.GetPublicKey()
-	if err != nil {
-		return err
-	}
-	hashed := sha256.Sum256(msg)
-	return rsa.VerifyPKCS1v15(key, hash, hashed[:], sig)
 }

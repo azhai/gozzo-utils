@@ -39,7 +39,7 @@ func CreateFile(path string) (fp *os.File, err error) {
 		err = os.MkdirAll(dir, DIR_MODE)
 	}
 	if err == nil {
-		flag := os.O_RDWR|os.O_CREATE|os.O_TRUNC
+		flag := os.O_RDWR | os.O_CREATE | os.O_TRUNC
 		fp, err = os.OpenFile(path, flag, FILE_MODE)
 	}
 	return
@@ -66,7 +66,6 @@ func OpenFile(path string, readonly, append bool) (fp *os.File, size int64, err 
 	return
 }
 
-
 func ReadLines(path string) ([]string, error) {
 	return ReadFile(path, bufio.ScanLines)
 }
@@ -74,7 +73,7 @@ func ReadLines(path string) ([]string, error) {
 func ReadFile(path string, split bufio.SplitFunc) ([]string, error) {
 	var result []string
 	output := make(chan []byte)
-	go func(){
+	go func() {
 		for line := range output {
 			result = append(result, string(line))
 		}
@@ -119,4 +118,46 @@ func ReadFileTail(path string, size int) ([]byte, error) {
 		err = nil
 	}
 	return result, err
+}
+
+// CopyFile copies the contents of the file named src to the file named
+// by dst. The file will be created if it does not already exist. If the
+// destination file exists, all it's contents will be replaced by the contents
+// of the source file.
+func CopyFile(src, dst string) (err error) {
+	in, err := os.Open(src)
+	if err != nil {
+		return
+	}
+	defer in.Close()
+	out, err := os.Create(dst)
+	if err != nil {
+		return
+	}
+	defer func() {
+		cerr := out.Close()
+		if err == nil {
+			err = cerr
+		}
+	}()
+	if _, err = io.Copy(out, in); err != nil {
+		return
+	}
+	err = out.Sync()
+	return
+}
+
+// 通过Bash命令复制整个目录，只能运行于Linux或MacOS
+// 当dst结尾带斜杠时，复制为dst下的子目录
+func CopyDir(src, dst string) (err error) {
+	if length := len(src); src[length-1] == '/' {
+		src = src[:length-1] //去掉结尾的斜杠
+	}
+	info, err := os.Stat(src)
+	if err != nil || !info.IsDir() {
+		return
+	}
+	cmd := exec.Command("cp", "-rf", src, dst)
+	err = cmd.Run()
+	return
 }

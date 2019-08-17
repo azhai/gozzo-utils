@@ -14,8 +14,8 @@ type MacHash struct {
 	secretKey []byte
 }
 
-func NewMacHash(creator NewHashFunc) MacHash {
-	return MacHash{creator: creator}
+func NewMacHash(creator NewHashFunc) *MacHash {
+	return &MacHash{creator: creator}
 }
 
 func (h MacHash) SetKey(key string) MacHash {
