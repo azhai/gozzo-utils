@@ -93,7 +93,7 @@ type RSACipher struct {
 }
 
 func NewRSACipher(privKey, pubKey string) RSACipher {
-	return RSACipher{privKey:[]byte(privKey), pubKey:[]byte(pubKey)}
+	return RSACipher{privKey: []byte(privKey), pubKey: []byte(pubKey)}
 }
 
 // 解密pem格式的公钥/私钥

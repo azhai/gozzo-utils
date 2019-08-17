@@ -2,8 +2,8 @@ package cryptogy
 
 import (
 	"bytes"
-	"crypto/cipher"
 	"crypto/aes"
+	"crypto/cipher"
 	"strings"
 )
 
@@ -12,21 +12,21 @@ type UnpaddingFunc func(origData []byte) []byte
 
 func ZeroPadding(cipherText []byte, blockSize int) []byte {
 	padding := blockSize - len(cipherText)%blockSize
-	padtext := bytes.Repeat([]byte{0}, padding)//用0去填充
+	padtext := bytes.Repeat([]byte{0}, padding) //用0去填充
 	return append(cipherText, padtext...)
 }
 
 func ZeroUnpadding(origData []byte) []byte {
 	return bytes.TrimFunc(origData, func(r rune) bool {
-			return r == rune(0)
+		return r == rune(0)
 	})
 }
 
 func PKCS5Padding(cipherText []byte, blockSize int) []byte {
-	padding := blockSize - len(cipherText)%blockSize//需要padding的数目
+	padding := blockSize - len(cipherText)%blockSize //需要padding的数目
 	//只要少于256就能放到一个byte中，默认的blockSize=16(即采用16*8=128, AES-128长的密钥)
 	//最少填充1个byte，如果原文刚好是blocksize的整数倍，则再填充一个blocksize
-	padtext := bytes.Repeat([]byte{byte(padding)}, padding)//生成填充的文本
+	padtext := bytes.Repeat([]byte{byte(padding)}, padding) //生成填充的文本
 	return append(cipherText, padtext...)
 }
 
@@ -37,7 +37,7 @@ func PKCS5Unpadding(origData []byte) []byte {
 }
 
 func PKCS7Padding(cipherText []byte, blockSize int) []byte {
-	padding := blockSize - len(cipherText) % blockSize
+	padding := blockSize - len(cipherText)%blockSize
 	padtext := bytes.Repeat([]byte{byte(padding)}, padding)
 	return append(cipherText, padtext...)
 }
@@ -51,9 +51,9 @@ func PKCS7Unpadding(origData []byte) []byte {
 // AES加密，支持模式CBC、CFB、CTR、OFB，不支持ECB和GCM
 // 其中CBC模式一般需要填充，用法: c.SetPaddingFunc("PKCS5")
 type AESCipher struct {
-	modeName string
-	iv []byte
-	Padding PaddingFunc
+	modeName  string
+	iv        []byte
+	Padding   PaddingFunc
 	Unpadding UnpaddingFunc
 	cipher.Block
 }
@@ -69,7 +69,7 @@ func NewAESCipher(mode string, key []byte) (*AESCipher, error) {
 }
 
 func (c *AESCipher) SetPaddingFunc(name string) {
-	switch strings.ToUpper(name){
+	switch strings.ToUpper(name) {
 	case "0", "ZERO":
 		c.Padding = ZeroPadding
 		c.Unpadding = ZeroUnpadding

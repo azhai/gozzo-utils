@@ -2,8 +2,6 @@ package cryptogy
 
 import (
 	"crypto"
-	"crypto/md5"
-	"crypto/sha256"
 	"testing"
 	"time"
 
@@ -100,7 +98,7 @@ UqWHmhg2z2Itx8B0m9cORIsCAwEAAQ==
 
 func TestHmacMd5(t *testing.T) {
 	key := time.Now().String()
-	h := NewMacHash(md5.New).SetKey(key)
+	h := NewMacHash(crypto.MD5.New).SetKey(key)
 	for i, data := range origDatas {
 		signed := h.Sign(data)
 		assert.True(t, h.Verify(data, signed))
@@ -110,7 +108,7 @@ func TestHmacMd5(t *testing.T) {
 
 func TestHmacSha256(t *testing.T) {
 	key := time.Now().String()
-	h := NewMacHash(sha256.New).SetKey(key)
+	h := NewMacHash(crypto.SHA256.New).SetKey(key)
 	for i, data := range origDatas {
 		signed := h.Sign(data)
 		assert.True(t, h.Verify(data, signed))

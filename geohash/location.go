@@ -6,7 +6,6 @@ import (
 	"sort"
 	"strings"
 	"time"
-	"container/list"
 
 	"github.com/azhai/gozzo-utils/common"
 	"github.com/azhai/gozzo-utils/random"
@@ -118,7 +117,7 @@ func (p *Position) GetInexactSpeed(target *Position) (float32, int) {
 }
 
 // 围栏接口
-type Enclosure interface {
+type Fence interface {
 	Contains(point *geo.Point) bool // 是否在围栏内（含边界）
 }
 
@@ -141,15 +140,15 @@ type Polygon = geo.Polygon
 
 // 航线围栏
 type Stripe struct {
-	coord *Coordinate
+	coord  *Coordinate
+	points map[string]*geo.Point
 	values []string
-	*list.List
 }
 
 // padding为道路单边宽度（米）
-func NewStripe(padding int, points ...*geo.Point) *Stripe {
+func NewStripe(padding int, points []*geo.Point) *Stripe {
 	coord := NewCoordinate(float64(padding))
-	s := &Stripe{coord, nil, list.New()}
+	s := &Stripe{coord, make(map[string]*geo.Point), nil}
 	s.Insert(points...)
 	return s
 }
@@ -159,36 +158,39 @@ func (s *Stripe) Hash(point *geo.Point) string {
 	return s.coord.Encode(point.Lat(), point.Lng())
 }
 
+func (s *Stripe) Len() int {
+	return len(s.values)
+}
+
 func (s *Stripe) Values() []string {
 	return s.values
 }
 
-// 从后往前查找最近的两个点
-func (s *Stripe) Seek(value string) (*list.Element, *list.Element) {
-	for mark := s.Back(); mark != nil; mark = mark.Prev()  {
-		flag := strings.Compare(value, mark.Value.(string))
-		if flag == 0 { // 找到一个重复的点
-			return nil, mark // 前一个元素留空，方便后续判断
-		}
-		if flag > 0 { // 与终点同一侧，继续
-			continue
-		}
-		return mark, mark.Next()
+func (s *Stripe) Point(i int) *geo.Point {
+	if i < 0 || i >= s.Len() {
+		return nil
 	}
-	return nil, nil
+	return s.points[s.values[i]]
 }
 
 // 在合适位置增加多个点
 func (s *Stripe) Insert(points ...*geo.Point) {
 	// 将原有值和新增的值放在一起排序，重新构建列表
 	for _, p := range points {
-		s.values = append(s.values, s.Hash(p))
+		newbie := s.Hash(p)
+		s.values = append(s.values, newbie)
+		s.points[newbie] = p
 	}
 	sort.Strings(s.values)
-	s.Init() // 清空列表
-	for _, value := range s.values {
-		s.PushBack(value)
-	}
+}
+
+func (s *Stripe) Find(point *geo.Point) int {
+	value := s.Hash(point)
+	// 二分查找，从前向后查找，idx可能是0-len
+	idx := sort.Search(s.Len(), func(i int) bool {
+		return strings.Compare(s.values[i], value) >= 0
+	})
+	return idx
 }
 
 func (s *Stripe) Contains(point *geo.Point) bool {

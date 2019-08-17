@@ -10,7 +10,7 @@ type NewHashFunc func() hash.Hash
 
 // hmac哈希，例如 NewMacHash(sha256.New).SetKey("nonce")
 type MacHash struct {
-	creator NewHashFunc
+	creator   NewHashFunc
 	secretKey []byte
 }
 

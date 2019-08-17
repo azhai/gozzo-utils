@@ -31,12 +31,12 @@ var LogLevels = map[string]zapcore.Level{
 	"emergency": zapcore.FatalLevel, // zap中无emergency等级
 }
 
-var DefaultConfig = LogConfig {
+var DefaultConfig = LogConfig{
 	Encoding:   "console",
 	LevelCase:  "capital",
 	TimeFormat: "2006-01-02 15:04:05",
 	MinLevel:   "info",
-	OutputMap:  map[string][]string{":":{"stderr"}},
+	OutputMap:  map[string][]string{":": {"stderr"}},
 }
 
 type ILogger interface {
@@ -63,7 +63,7 @@ func NewLogger(level, logdir string) *Logger {
 	cfg.MinLevel = level
 	if logdir = strings.TrimSpace(logdir); logdir != "" {
 		cfg.OutputMap = map[string][]string{
-			":warn": {filepath.Join(logdir, "access.log")},
+			":warn":  {filepath.Join(logdir, "access.log")},
 			"error:": {filepath.Join(logdir, "error.log")},
 		}
 	}
