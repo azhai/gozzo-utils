@@ -3,7 +3,6 @@ package geohash
 import (
 	"testing"
 
-	"github.com/azhai/gozzo-utils/common"
 	"github.com/kellydunn/golang-geo"
 	"github.com/stretchr/testify/assert"
 )
@@ -46,14 +45,29 @@ var (
 	}
 )
 
-func ToPoint(p string) *geo.Point {
-	pieces := common.SplitPieces(p, ",", nil)
-	if len(pieces) < 2 {
-		return nil
-	}
-	lat := common.ParseDecimal(pieces[0], 6)
-	lng := common.ParseDecimal(pieces[1], 6)
-	return geo.NewPoint(lat.GetFloat(), lng.GetFloat())
+func TestGetDistance(t *testing.T) {
+	a, b := ToPoint(points[0]), ToPoint(points[1])
+	dist, bear := GetDistance(a, b)
+	assert.Equal(t, 388, dist)
+	assert.Equal(t, 137, bear)
+}
+
+func TestMapPoint(t *testing.T) {
+	a, b := ToPoint(points[2]), ToPoint(points[3])
+	c, d := ToPoint(points[4]), ToPoint(points[5])
+	t.Log("a: ", a)
+	t.Log("b: ", b)
+	t.Log("c: ", c)
+	t.Log("d: ", d)
+	shadow, between := MapPoint(a, c, a)
+	assert.Equal(t, between, CoincideA)
+	t.Log("aca", shadow, between)
+	shadow, between = MapPoint(a, c, b)
+	assert.Equal(t, between, InsideA)
+	t.Log("acb", shadow, between)
+	shadow, between = MapPoint(a, c, d)
+	assert.Equal(t, between, OutsideB)
+	t.Log("acd", shadow, between)
 }
 
 func TestCircleFence(t *testing.T) {
@@ -78,13 +92,17 @@ func TestStripeFence(t *testing.T) {
 		ps = append(ps, ToPoint(p))
 	}
 	f := NewStripe(20, ps)
-	t.Log(f.Hash(ToPoint(outer))[11:])
-	t.Log(f.Find(ToPoint(outer)))
-	t.Log(f.Point(4))
-	t.Log(f.Point(5))
-	for _, v := range f.Values() {
-		t.Log(v[11:])
+	for i := 0; i < f.Len(); i++ {
+		t.Log("pn: ", i, f.Point(i))
 	}
+
+	shadow, between := f.Nearest(ToPoint(inner))
+	t.Log("inner", ToPoint(inner))
+	t.Log(shadow, between)
 	assert.True(t, f.Contains(ToPoint(inner)))
+
+	shadow, between = f.Nearest(ToPoint(outer))
+	t.Log("outer", ToPoint(outer))
+	t.Log(shadow, between)
 	assert.False(t, f.Contains(ToPoint(outer)))
 }
