@@ -1,7 +1,6 @@
 package geohash
 
 import (
-	"encoding/binary"
 	"math"
 	"sort"
 	"strings"
@@ -51,32 +50,6 @@ func NewSpeed(value float32) Speed {
 		Kmph: value * UnitKmph,
 		Knot: value * UnitKnot,
 	}
-}
-
-// 经度或纬度
-type Dimension struct {
-	*common.Decimal
-}
-
-func NewDimension(value float64) *Dimension {
-	return &Dimension{common.NewDecimal(value, 6)}
-}
-
-func (d Dimension) Encode(v interface{}) []byte {
-	dim := v.(*Dimension)
-	chunk := make([]byte, 4)
-	binary.BigEndian.PutUint32(chunk, uint32(dim.Value))
-	return chunk
-}
-
-func (d Dimension) Decode(chunk []byte) interface{} {
-	dim := NewDimension(0.0)
-	if chunk != nil {
-		chunk = common.ResizeBytes(chunk, true, 4)
-		value := binary.BigEndian.Uint32(chunk)
-		dim.Value = int64(value)
-	}
-	return dim
 }
 
 type Position struct {

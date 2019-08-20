@@ -32,6 +32,21 @@ func SplitPieces(text, sep string, conv ConvAction) []string {
 	return pieces
 }
 
+func ParseDate(layout, date string) (time.Time, error) {
+	loc := time.Now().Location()
+	return time.ParseInLocation(layout, date, loc)
+}
+
+func ToDate(t time.Time) time.Time {
+	year, month, day := t.Date()
+	loc := t.Location()
+	return time.Date(year, month, day, 0, 0, 0, 0, loc)
+}
+
+func Today() time.Time {
+	return ToDate(time.Now())
+}
+
 // JSON中的日期时间类型
 type JsonTime struct {
 	time.Time
