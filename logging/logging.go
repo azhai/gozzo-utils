@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/azhai/gozzo-utils/common"
+	"github.com/azhai/gozzo-utils/filesystem"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -155,7 +155,7 @@ func GetLogPath(path string, createIt bool) string {
 		absPath = re.ReplaceAllLiteralString(absPath, "")
 	}
 	if createIt { // 如果不存在就创建文件
-		fp, _, err := common.OpenFile(absPath, false, true)
+		fp, _, err := filesystem.OpenFile(absPath, false, true)
 		if err == nil {
 			fp.Close()
 		}

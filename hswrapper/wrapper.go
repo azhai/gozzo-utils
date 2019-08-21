@@ -5,6 +5,16 @@ import (
 	"fmt"
 )
 
+/*
+HandlerSocket 协议文档
+https://github.com/DeNA/HandlerSocket-Plugin-for-MySQL/blob/master/docs-en/protocol.en.txt
+
+Insert和Update操作始终不成功，直接用发协议规定格式的TCP报文也不行
+可能与HandlerSocket本身的Bug有关：
+1. Write operations do not invalidate the query cache
+2. No support for auto increment
+*/
+
 const DefaultIndexName = "PRIMARY"
 
 type HandlerSocketIndex struct {
@@ -88,10 +98,12 @@ func (w *HandlerSocketIndex) Delete(limit int, oper string, where []interface{})
 	return w.DeleteString(limit, oper, conds)
 }
 
+// @Deprecated 协议似乎有变动，本方法不起作用
 func (w *HandlerSocketIndex) InsertString(vals ...string) error {
 	return w.Socket.Insert(w.indexNo, vals...)
 }
 
+// @Deprecated 协议似乎有变动，本方法不起作用
 func (w *HandlerSocketIndex) Insert(vals ...interface{}) error {
 	var row []string
 	for _, val := range vals {
@@ -100,10 +112,12 @@ func (w *HandlerSocketIndex) Insert(vals ...interface{}) error {
 	return w.InsertString(row...)
 }
 
+// @Deprecated 协议似乎有变动，本方法不起作用
 func (w *HandlerSocketIndex) UpdateString(limit int, oper string, where []string, vals ...string) (int, error) {
 	return w.Socket.Modify(w.indexNo, oper, limit, 0, "U", where, vals)
 }
 
+// @Deprecated 协议似乎有变动，本方法不起作用
 func (w *HandlerSocketIndex) Update(limit int, oper string, where []interface{}, vals ...interface{}) (int, error) {
 	var row, conds []string
 	for _, val := range vals {

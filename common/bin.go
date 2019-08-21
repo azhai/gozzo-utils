@@ -48,6 +48,20 @@ func ToString(v interface{}) string {
 	return fmt.Sprintf("%#v", v)
 }
 
+// 获取相同的前缀长度
+func GetSamePreLen(a, b string) int {
+	size := len(a)
+	if another := len(b); another < size {
+		size = another
+	}
+	for i := 0; i < size; i++ {
+		if a[i] != b[i] {
+			return i
+		}
+	}
+	return size
+}
+
 // 获取其中一段字节，允许负索引
 func GetSlice(buffer []byte, start, stop, size int) []byte {
 	if size <= 0 {

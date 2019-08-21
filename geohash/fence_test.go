@@ -45,6 +45,20 @@ var (
 	}
 )
 
+func TestGeoHash(t *testing.T) {
+	coord := NewCoordinate(5) //距离5m以内
+	point := ToPoint(center)
+	hash := coord.Encode(point.Lat(), point.Lng())
+	assert.Equal(t, "2313000100023130213230", hash)
+	lat, lng := coord.Decode(hash)
+	assert.InDelta(t, lat, point.Lat(), 2e-05)
+	assert.InDelta(t, lng, point.Lng(), 2e-05)
+	point2 := geo.NewPoint(lat, lng)
+	dist, _ := GetDistance(point, point2)
+	assert.True(t, dist <= 5)
+	t.Log(point, hash, dist)
+}
+
 func TestGetDistance(t *testing.T) {
 	a, b := ToPoint(points[0]), ToPoint(points[1])
 	dist, bear := GetDistance(a, b)
@@ -96,12 +110,12 @@ func TestStripeFence(t *testing.T) {
 		t.Log("pn: ", i, f.Point(i))
 	}
 
-	shadow, between := f.Nearest(ToPoint(inner))
+	shadow, between := f.NearestPoints(ToPoint(inner))
 	t.Log("inner", ToPoint(inner))
 	t.Log(shadow, between)
 	assert.True(t, f.Contains(ToPoint(inner)))
 
-	shadow, between = f.Nearest(ToPoint(outer))
+	shadow, between = f.NearestPoints(ToPoint(outer))
 	t.Log("outer", ToPoint(outer))
 	t.Log(shadow, between)
 	assert.False(t, f.Contains(ToPoint(outer)))

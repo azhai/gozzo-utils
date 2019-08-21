@@ -1,12 +1,13 @@
-package common
+package filesystem
 
 import (
-	"bufio"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
+	"strings"
 )
 
 const (
@@ -67,60 +68,6 @@ func OpenFile(path string, readonly, append bool) (fp *os.File, size int64, err 
 	return
 }
 
-func ReadLines(path string) ([]string, error) {
-	return ReadFile(path, bufio.ScanLines)
-}
-
-func ReadFile(path string, split bufio.SplitFunc) ([]string, error) {
-	var result []string
-	output := make(chan []byte)
-	go func() {
-		for line := range output {
-			result = append(result, string(line))
-		}
-	}()
-	err := ReadFileTo(path, split, output)
-	return result, err
-}
-
-// 按分割方法读取文件全部
-func ReadFileTo(path string, split bufio.SplitFunc, output chan<- []byte) error {
-	fp, _, err := OpenFile(path, true, false)
-	if err != nil {
-		return err
-	}
-	defer fp.Close()
-	scanner := bufio.NewScanner(fp)
-	scanner.Split(split)
-	for scanner.Scan() {
-		output <- scanner.Bytes()
-	}
-	return scanner.Err()
-}
-
-// 读取文件末尾若干字节
-func ReadFileTail(path string, size int) ([]byte, error) {
-	fp, _, err := OpenFile(path, true, false)
-	if err != nil {
-		return nil, err
-	}
-	defer fp.Close()
-	offset, err := fp.Seek(0-int64(size), io.SeekEnd)
-	if offset < 0 {
-		return nil, err
-	}
-	// 当size超出文件大小时，游标移到开头并报错，这里忽略错误
-	result := make([]byte, size)
-	reads, err := fp.Read(result)
-	if reads >= 0 {
-		result = result[:reads]
-	}
-	if err == io.EOF {
-		err = nil
-	}
-	return result, err
-}
-
 // CopyFile copies the contents of the file named src to the file named
 // by dst. The file will be created if it does not already exist. If the
 // destination file exists, all it's contents will be replaced by the contents
@@ -158,7 +105,24 @@ func CopyDir(src, dst string) (err error) {
 	if err != nil || !info.IsDir() {
 		return
 	}
-	cmd := exec.Command("cp", "-rf", src, dst)
-	err = cmd.Run()
+	err = exec.Command("cp", "-rf", src, dst).Run()
 	return
+}
+
+// 使用 wc -l 计算有多少行
+func LineCount(fname string) int {
+	var num int
+	fname, err := filepath.Abs(fname)
+	if err != nil {
+		return -1
+	}
+	out, err := exec.Command("wc", "-l", fname).Output()
+	if err != nil {
+		return -1
+	}
+	col := strings.SplitN(string(out), " ", 2)[0]
+	if num, err = strconv.Atoi(col); err != nil {
+		return -1
+	}
+	return num
 }

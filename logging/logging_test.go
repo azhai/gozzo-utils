@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/azhai/gozzo-utils/common"
+	"github.com/azhai/gozzo-utils/filesystem"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 )
@@ -27,7 +27,7 @@ func CreateLogger(level string) *zap.SugaredLogger {
 }
 
 func ReadLastLog(logfile string) (level string, content string) {
-	data, _ := common.ReadFileTail(logfile, 1024)
+	data, _ := filesystem.ReadFileTail(logfile, 1024)
 	data = bytes.TrimRight(data, "\r\n")
 	n := bytes.LastIndexByte(data, byte('\n'))
 	pieces := bytes.SplitN(data[n+1:], []byte("\t"), 4)

@@ -25,6 +25,8 @@ import (
 	"math"
 	"sort"
 	"strconv"
+
+	"github.com/azhai/gozzo-utils/common"
 )
 
 const (
@@ -59,6 +61,11 @@ var precErrors = []float64{
 	19.09,    //   19.088  m  index=20
 	9.54,     //  954.394 cm
 	4.77,     //  477.197 cm
+}
+
+// 根据哈希计算大概距离（米）
+func GetInexactDistance(a, b string) float64 {
+	return precErrors[common.GetSamePreLen(a, b)]
 }
 
 // 计算前缀长度
@@ -106,22 +113,16 @@ func (c *Coordinate) Check(lat, lng float64) bool {
 
 // Geohash，使用Hilbert空间算法
 // prec取值范围1~22，对应误差表中的index
-func (c *Coordinate) EncodeInt64(lat, lng float64) int64 {
-	if !c.Check(lat, lng) {
-		return 0
-	}
-	x, y := c.coord2Int(lng, lat)
-	return c.xy2Hash(int64(x), int64(y))
-}
-
-// Geohash，使用Hilbert空间算法
-// prec取值范围1~22，对应误差表中的index
 func (c *Coordinate) Encode(lat, lng float64) string {
 	const (
 		_BASE4 = "0123"
 		_MASK  = 3
 	)
-	code := c.EncodeInt64(lat, lng)
+	if !c.Check(lat, lng) {
+		return ""
+	}
+	x, y := c.coord2int(lng, lat)
+	code := c.xy2hash(int64(x), int64(y))
 	if code <= 0 {
 		return ""
 	}
@@ -136,19 +137,40 @@ func (c *Coordinate) Encode(lat, lng float64) string {
 	return fmt.Sprintf("%0"+length+"s", string(res))
 }
 
-func (c *Coordinate) coord2Int(lng, lat float64) (float64, float64) {
-	lngX := (lng + LNG_MAX) / 360.0 * c.dim //[0 ... dim)
-	latY := (lat + LAT_MAX) / 180.0 * c.dim //[0 ... dim)
-	x := math.Min(c.dim-1, math.Floor(lngX))
-	y := math.Min(c.dim-1, math.Floor(latY))
-	return x, y
+func (c *Coordinate) Decode(hash string) (lat, lng float64) {
+	if len(hash) == 0 {
+		return
+	}
+	code, err := strconv.ParseInt(hash, 4, 64)
+	if err != nil {
+		return
+	}
+	x, y := c.hash2xy(code)
+	lng, lat = c.int2coord(float64(x), float64(y))
+	lng, lat = coordLevelFix(c.dim, lng, lat)
+	return
 }
 
-func (c *Coordinate) xy2Hash(x, y int64) int64 {
-	var (
-		rx, ry, d int64
-		lvl       = int64(c.dim) >> 1
-	)
+func (c *Coordinate) coord2int(lng, lat float64) (x, y float64) {
+	lngX := (lng + LNG_MAX) / 360.0 * c.dim //[0 ... dim)
+	latY := (lat + LAT_MAX) / 180.0 * c.dim //[0 ... dim)
+	x = math.Min(c.dim-1, math.Floor(lngX))
+	y = math.Min(c.dim-1, math.Floor(latY))
+	return
+}
+
+func (c *Coordinate) int2coord(x, y float64) (lng, lat float64) {
+	if x >= c.dim || y >= c.dim {
+		return
+	}
+	lng = x/c.dim*360 - 180
+	lat = y/c.dim*180 - 90
+	return
+}
+
+func (c *Coordinate) xy2hash(x, y int64) (d int64) {
+	var rx, ry int64
+	lvl := int64(c.dim) >> 1
 	for lvl > 0 {
 		if (x & lvl) > 0 {
 			rx = 1
@@ -164,7 +186,22 @@ func (c *Coordinate) xy2Hash(x, y int64) int64 {
 		x, y = coordRotate(lvl, x, y, rx, ry)
 		lvl = lvl >> 1
 	}
-	return d
+	return
+}
+
+func (c *Coordinate) hash2xy(d int64) (x, y int64) {
+	var rx, ry int64
+	lvl := int64(1)
+	for lvl < int64(c.dim) {
+		rx = 1 & (d >> 1)
+		ry = 1 & (d ^ rx)
+		x, y = coordRotate(lvl, x, y, rx, ry)
+		x += lvl * rx
+		y += lvl * ry
+		d >>= 2
+		lvl <<= 1
+	}
+	return
 }
 
 func coordRotate(n, x, y, rx, ry int64) (int64, int64) {
@@ -176,4 +213,9 @@ func coordRotate(n, x, y, rx, ry int64) (int64, int64) {
 		return y, x
 	}
 	return x, y
+}
+
+func coordLevelFix(dim float64, x, y float64) (float64, float64) {
+	diff := float64(1.0) / dim
+	return x + 180*diff, y + 90*diff
 }
