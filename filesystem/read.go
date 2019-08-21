@@ -7,18 +7,19 @@ import (
 
 // 每次只保留当前行数据
 type LineReader struct {
-	err error
+	err  error
 	line []byte
+	rd   io.ReadCloser
 	*bufio.Reader
 }
 
 func NewLineReader(fname string) *LineReader {
 	fp, _, err := OpenFile(fname, true, false)
-	return &LineReader{err: err, Reader: bufio.NewReader(fp)}
+	return &LineReader{err: err, rd: fp, Reader: bufio.NewReader(fp)}
 }
 
 func (r *LineReader) Close() error {
-	r.err = r.Close()
+	r.err = r.rd.Close()
 	return r.err
 }
 
