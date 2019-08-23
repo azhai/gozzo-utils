@@ -26,4 +26,3 @@ func TestReadLines(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, lines, count)
 }
-

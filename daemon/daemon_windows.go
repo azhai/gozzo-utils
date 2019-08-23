@@ -2,7 +2,9 @@
 
 package daemon
 
-import "github.com/kardianos/service"
+import (
+	"github.com/kardianos/service"
+)
 
 /*
 如果程序要作为Windows服务启动，需要将原来的main()改名为run()

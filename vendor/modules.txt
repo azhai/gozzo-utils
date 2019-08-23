@@ -17,9 +17,9 @@ github.com/lib/pq/oid
 github.com/lib/pq/scram
 # github.com/pmezard/go-difflib v1.0.0
 github.com/pmezard/go-difflib/difflib
-# github.com/streadway/amqp v0.0.0-20190404075320-75d898a42a94
+# github.com/streadway/amqp v0.0.0-20190815230801-eade30b20f1d
 github.com/streadway/amqp
-# github.com/stretchr/testify v1.3.0
+# github.com/stretchr/testify v1.4.0
 github.com/stretchr/testify/assert
 # github.com/ziutek/mymysql v1.5.4
 github.com/ziutek/mymysql/godrv
@@ -36,9 +36,11 @@ go.uber.org/zap/internal/bufferpool
 go.uber.org/zap/buffer
 go.uber.org/zap/internal/color
 go.uber.org/zap/internal/exit
-# golang.org/x/sys v0.0.0-20190204203706-41f3e6584952 => github.com/golang/sys v0.0.0-20190522044717-8097e1b27ff5
+# golang.org/x/sys v0.0.0-20190204203706-41f3e6584952 => github.com/golang/sys v0.0.0-20190813064441-fde4db37ae7a
 golang.org/x/sys/windows/registry
 golang.org/x/sys/windows/svc
 golang.org/x/sys/windows/svc/eventlog
 golang.org/x/sys/windows/svc/mgr
 golang.org/x/sys/windows
+# gopkg.in/yaml.v2 v2.2.2
+gopkg.in/yaml.v2

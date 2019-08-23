@@ -8,7 +8,7 @@ import (
 
 func RoundN(x float64, n int) float64 {
 	multiple := math.Pow10(n)
-	return math.Round(x * multiple) / multiple
+	return math.Round(x*multiple) / multiple
 }
 
 // 高精度小数
