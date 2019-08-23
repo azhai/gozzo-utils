@@ -1,5 +1,52 @@
 # gozzo 尜舟
 
+## 常用 common
+
+```go
+package main
+import (
+    "fmt"
+    "github.com/azhai/gozzo-utils/common"
+)
+
+// 浮点数
+func main() {
+    x := 123.45678
+    a := common.NewDecimal(common.RoundN(x, 2), 2)
+    fmt.Println(a.String()) // 123.45
+    b := common.ParseDecimal(a.String(), 2)
+    fmt.Println(b.String()) // 123.45
+}
+```
+
+## 文件操作 filesystem
+
+```go
+package main
+import (
+    "fmt"
+    "github.com/azhai/gozzo-utils/filesystem"
+)
+
+// 文件计行
+func main() {
+    fname := "README.md"
+	count := LineCount(fname)
+
+	// 逐行返回，适用于大文件
+	var lines []string
+	r := NewLineReader(fname)
+	for r.Reading() {
+		lines = append(lines, r.Text())
+	}
+	if len(lines) == count {
+		fmt.Println("%s have %d lines", fname, count)
+	} else {
+		fmt.Println("Error !")
+	}
+}
+```
+
 ## 文件日志 logging
 
 ```go
@@ -26,6 +73,14 @@ func main() {
     logger := logging.NewLogger("debug", "") // 输出到屏幕
     logger.Info("I was born on ", birthday, ", I am ",  age, " years old.")
 }
+```
+
+## 地理位置和电子围栏 geohash
+
+```bash
+# 电子围栏的测试请查看文件 geohash/fence_test.go
+cd geohash/
+go test -v -mod=vendor
 ```
 
 ## RabbitMQ队列 queue
