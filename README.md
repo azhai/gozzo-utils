@@ -7,7 +7,6 @@ package main
 import (
     "math"
     "time"
-    "github.com/azhai/gozzo-utils/common"
     "github.com/azhai/gozzo-utils/logging"
 )
 
@@ -23,8 +22,8 @@ func CalcAge(birthday string) int {
 
 func main() {
     birthday := "1996-02-29"
-    age := common.CalcAge(birthday)
-    logger := logging.NewLogger("debug", "stderr", "stdout") // 输出到屏幕
+    age := CalcAge(birthday)
+    logger := logging.NewLogger("debug", "") // 输出到屏幕
     logger.Info("I was born on ", birthday, ", I am ",  age, " years old.")
 }
 ```
@@ -48,7 +47,6 @@ func CreateMessage(num int) *queue.Message {
         Headers: amqp.Table{
             "MsgNo": int16(num),
         },
-        Routing: "testing", // 路由
     }
 }
 
@@ -61,10 +59,13 @@ func DumpBody(msg *queue.Message) error {
 func main() {
     ch := queue.NewChannel("amqp://user:123@127.0.0.1:5672")
     defer ch.Close()
-    mq := queue.NewMessageQueue("testing", "amq.topic") // 订阅队列testing
-    mq.RunAll(ch, DumpBody, -1)
+    routings := map[string]string{"testing":"queueForTesting"}
+    ch.InitBinds("amq.topic", routings, true)
+    mq := queue.NewMessageQueue()
+    mq.AddHandler("queueForTesting", DumpBody) // 订阅队列testing
+    mq.RunAll(ch, -1)
     for i := 1; i <= 10; i ++ {
-        mq.AddMessage(CreateMessage(i)) // 发布消息
+        mq.AddMessage("amq.topic", "testing", CreateMessage(i)) // 发布消息
     }
 }
 ```
