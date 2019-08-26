@@ -1,6 +1,7 @@
 package common
 
 import (
+	"fmt"
 	"math"
 	"strconv"
 	"strings"
@@ -83,13 +84,21 @@ func (d *Decimal) ChangePrecision(offset int) {
 	}
 }
 
-func (d *Decimal) String() string {
-	result := strconv.FormatInt(d.Value, 10)
-	if size := len(result) - d.Precision; size > 0 {
-		result = result[:size] + "." + result[size:]
-	} else {
-		result = "0." + strings.Repeat("0", 0-size) + result
+// 保留小数点之后末尾的0
+func (d *Decimal) Format() string {
+	// 多加一个前置0，兼容无整数部分的情况
+	size := int(d.Precision) + 1
+	tpl := "%0"+strconv.Itoa(size)+"d"
+	result := fmt.Sprintf(tpl, d.Value)
+	if sep := len(result) + 1 - size; sep > 0 {
+		result = result[:sep] + "." + result[sep:]
 	}
+	return result
+}
+
+// 不保留小数点之后末尾的0
+func (d *Decimal) String() string {
+	result := d.Format()
 	// 分开去除，否则会去掉整数部分末尾的0
 	result = strings.TrimRight(result, "0")
 	result = strings.TrimRight(result, ".")

@@ -5,31 +5,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/azhai/gozzo-utils/common"
 	"github.com/azhai/gozzo-utils/logging"
 	"github.com/streadway/amqp"
 )
 
-type Envelope struct {
-	QueueName  string
-	Exchange   string // basic.publish exchange
-	RoutingKey string // basic.publish routing key
-	*Message
-}
-
-type RecvFunc func(evp *Envelope) error
-
-func FromDeliverie(queName string, dlv amqp.Delivery) *Envelope {
-	if dlv.Body == nil {
-		return nil
-	}
-	return &Envelope{
-		QueueName:  queName,
-		Exchange:   dlv.Exchange,
-		RoutingKey: dlv.RoutingKey,
-		Message:    &Message{Body: dlv.Body, Headers: dlv.Headers},
-	}
-}
+type RecvFunc func(msg *Message) error
 
 func IsValidateError(err error) bool {
 	return strings.HasSuffix(err.Error(), " not supported")
@@ -38,13 +18,13 @@ func IsValidateError(err error) bool {
 // 消息队列
 type MessageQueue struct {
 	logger   logging.ILogger
-	Input    chan *Envelope
+	Input    chan *Message
 	Handlers map[string]RecvFunc
 }
 
 func NewMessageQueue() *MessageQueue {
 	return &MessageQueue{
-		Input:    make(chan *Envelope),
+		Input:    make(chan *Message),
 		Handlers: make(map[string]RecvFunc),
 	}
 }
@@ -69,34 +49,39 @@ func (mq *MessageQueue) AddRoutings(key, dst string, count int) map[string]strin
 	return routingMap
 }
 
-func (mq *MessageQueue) AddMessage(exchName, routing string, msg *Message) {
-	if msg != nil {
-		evp := &Envelope{Exchange: exchName, RoutingKey: routing, Message: msg}
-		mq.Input <- evp
-		if mq.logger != nil {
-			body := common.Bin2Hex(msg.Body)
-			mq.logger.Debugf("%s\t%s\t%+v\t%s", exchName, routing, msg.Headers, body)
+func (mq *MessageQueue) AddMessage(msg *Message, routExch ...string) {
+	if msg == nil {
+		return
+	}
+	if size := len(routExch); size >= 1 {
+		msg.Routing = routExch[0]
+		if size == 2 {
+			msg.Exchange = routExch[1]
 		}
+	}
+	mq.Input <- msg
+	if mq.logger != nil {
+		mq.logger.Debug(msg.ToString())
 	}
 }
 
-func (mq *MessageQueue) Build(exchName, routing string, body []byte, headers amqp.Table) {
+func (mq *MessageQueue) Build(exch, routing string, body []byte, headers amqp.Table) {
 	msg := NewMessage(body)
 	if headers != nil {
 		for key, value := range headers {
 			msg.Headers[key] = value
 		}
 	}
-	mq.AddMessage(exchName, routing, msg)
+	mq.AddMessage(msg, exch, routing)
 }
 
-func (mq *MessageQueue) Publish(ch *Channel, input chan *Envelope, retries int) (err error) {
+func (mq *MessageQueue) Publish(ch *Channel, input chan *Message, retries int) (err error) {
 	fails, errch := 0, make(chan error, 1)
-	var evp *Envelope
+	var msg *Message
 	for {
 		select {
-		case evp = <-input:
-			err = ch.PushMessage(evp.Exchange, evp.RoutingKey, evp.Message)
+		case msg = <-input:
+			err = ch.PushMessage(msg)
 			if err != nil {
 				if !IsValidateError(err) {
 					errch <- err
@@ -155,8 +140,9 @@ func (mq *MessageQueue) Subscribe(ch *Channel, queName string, autoAck bool, rec
 		}
 	}
 	for dlv := range output {
-		if evp := FromDeliverie(queName, dlv); evp != nil {
-			go receive(evp)
+		if msg := FromDeliverie(dlv); msg != nil {
+			msg.QueueName = queName
+			go receive(msg)
 		}
 	}
 	return

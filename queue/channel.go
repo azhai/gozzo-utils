@@ -1,6 +1,8 @@
 package queue
 
-import "github.com/streadway/amqp"
+import (
+	"github.com/streadway/amqp"
+)
 
 type Channel struct {
 	conn      *amqp.Connection
@@ -141,15 +143,21 @@ func (c *Channel) SetConfirm(confirm chan amqp.Confirmation) error {
 	}
 }
 
-func (c *Channel) PushMessage(exchName, key string, msg *Message) error {
+func (c *Channel) PushMessage(msg *Message, routExch ...string) error {
+	if size := len(routExch); size <= 1 {
+		if size == 0 {
+			routExch = append(routExch, msg.Routing)
+		}
+		routExch = append(routExch, msg.Exchange)
+	}
 	return c.Publish(
-		exchName, // publish to an exchange
-		key,      // routing to 0 or more queues
-		false,    // mandatory
-		false,    // immediate
+		routExch[1], // publish to an exchange
+		routExch[0], // routing to 0 or more queues
+		false,       // mandatory
+		false,       // immediate
 		amqp.Publishing{
 			Body:         msg.Body,
-			Headers:      msg.Headers,
+			Headers:      msg.GetHeaders(),
 			DeliveryMode: 1, //非持久化
 		},
 	)
