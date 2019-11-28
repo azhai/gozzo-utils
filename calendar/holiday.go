@@ -33,6 +33,16 @@ func Date(year, month, day int) time.Time {
 	return time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.Local)
 }
 
+// 相差多少天
+func GetDiffDays(start, end string) (int, error) {
+	starttime, endtime, err := GetTimeRange(start, end)
+	if err != nil {
+		return 0, err
+	}
+	secs := endtime.Unix() - starttime.Unix()
+	return int(secs / 86400), nil
+}
+
 type Calendar struct {
 	cal        map[string]uint8
 	Start, End time.Time
@@ -52,8 +62,10 @@ func NewCalendar(start, end string, saturday_as Weekday) *Calendar {
 	return c
 }
 
-func NewYearCalendar(saturday_as Weekday) *Calendar {
-	year := time.Now().Year()
+func NewYearCalendar(year int, saturday_as Weekday) *Calendar {
+	if year <= 0 {
+		year = time.Now().Year()
+	}
 	c := &Calendar{Start: Date(year, 1, 1), End: Date(year, 12, 31)}
 	c.Init(saturday_as)
 	return c
@@ -70,12 +82,12 @@ func (c *Calendar) Init(saturday_as Weekday) {
 	for dt.Before(c.End) {
 		date := dt.Format(DATE_LAYOUT)
 		if wd == time.Sunday {
-			c.cal[date] = W_SUN_DAY
+			c.cal[date] = W_SUN_DAY + DK_DAY
 		} else if wd == time.Saturday {
 			saturday_as = NextSaturday(saturday_as)
-			c.cal[date] = saturday_as
+			c.cal[date] = saturday_as + DK_DAY
 		}
-		dt.Add(time.Hour * 24)
+		dt = dt.Add(time.Hour * 24)
 		wd = NextWeekday(wd)
 	}
 }
@@ -130,26 +142,16 @@ func (c *Calendar) GetHolidays(start, end string, exclude_end bool) (holidays []
 		return
 	}
 	if !exclude_end {
-		endtime.Add(time.Hour * 24)
+		endtime = endtime.Add(time.Hour * 24)
 	}
 	for dt.Before(endtime) {
 		date := dt.Format(DATE_LAYOUT)
 		if c.IsHoliday(date) {
 			holidays = append(holidays, date)
 		}
-		dt.Add(time.Hour * 24)
+		dt = dt.Add(time.Hour * 24)
 	}
 	return
-}
-
-// 相差多少天
-func GetDiffDays(start, end string) (int, error) {
-	starttime, endtime, err := GetTimeRange(start, end)
-	if err != nil {
-		return 0, err
-	}
-	secs := endtime.Unix() - starttime.Unix()
-	return int(secs / 86400), nil
 }
 
 func GetTimeRange(start, end string) (starttime, endtime time.Time, err error) {

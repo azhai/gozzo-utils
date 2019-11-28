@@ -7,8 +7,10 @@ import (
 
 var (
 	NewYear   = NewSolarFestival(1, 1, "元旦")
-	SpringEve = NewLunarFestivalCount("除夕", 3).AddAnnals(2016,
+	// 春节放假的第一天实际上是除夕
+	SpringDay = NewLunarFestivalCount("春节", 3).AddAnnals(2016,
 		"2016-02-07", "2017-01-27", "2018-02-15", "2019-02-04", "2020-01-24")
+	// 清明节有时是4月4日，放假的第一天是4月2日，例如2016年
 	TombSweeping = NewSolarFestival(4, 5, "清明节")
 	LabourDay    = NewSolarFestival(5, 1, "劳动节")
 	DragonBoat   = NewLunarFestival("端午节").AddAnnals(2016,
