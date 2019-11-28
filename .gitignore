@@ -11,3 +11,4 @@
 *.upx
 *.vscode
 tests/
+vendor/
