@@ -29,7 +29,7 @@ func NewLunar(year, month, day int) Lunar {
 }
 
 func NewSolar(date string) Solar {
-	dt, err := time.Parse(DATE_LAYOUT, date)
+	dt, err := time.Parse(LAYOUT_DATE, date)
 	if err != nil {
 		return Solar{}
 	}

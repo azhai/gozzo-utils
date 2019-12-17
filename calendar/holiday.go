@@ -2,11 +2,13 @@ package calendar
 
 import (
 	"time"
+
+	"github.com/azhai/gozzo-utils/common"
 )
 
 const (
-	DATE_LAYOUT          = "2006-01-02"
-	WEEK_DAY_COUNT uint8 = 6 // Weekday分类数量
+	LAYOUT_DATE          = "2006-01-02"
+	COUNT_WEEK_DAY uint8 = 6 // Weekday分类数量
 )
 
 type Weekday = uint8
@@ -22,16 +24,12 @@ const (
 type DateKind = uint8
 
 const (
-	DK_ILLEGAL  = iota * WEEK_DAY_COUNT // 非法数据
+	DK_ILLEGAL  = iota * COUNT_WEEK_DAY // 非法数据
 	DK_DAYOFF                           // 被调休日(上班)
 	DK_DAY                              // 普通日期
 	DK_EVE                              // 副节日
 	DK_FESTIVAL                         // 节日
 )
-
-func Date(year, month, day int) time.Time {
-	return time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.Local)
-}
 
 // 相差多少天
 func GetDiffDays(start, end string) (int, error) {
@@ -66,7 +64,10 @@ func NewYearCalendar(year int, saturday_as Weekday) *Calendar {
 	if year <= 0 {
 		year = time.Now().Year()
 	}
-	c := &Calendar{Start: Date(year, 1, 1), End: Date(year, 12, 31)}
+	c := &Calendar {
+		Start: common.NewDate(year, 1, 1),
+		End: common.NewDate(year, 12, 31),
+	}
 	c.Init(saturday_as)
 	return c
 }
@@ -80,7 +81,7 @@ func (c *Calendar) Init(saturday_as Weekday) {
 	saturday_as = NextSaturday(saturday_as)
 	c.cal = make(map[string]uint8) // 清空
 	for dt.Before(c.End) {
-		date := dt.Format(DATE_LAYOUT)
+		date := dt.Format(LAYOUT_DATE)
 		if wd == time.Sunday {
 			c.cal[date] = W_SUN_DAY + DK_DAY
 		} else if wd == time.Saturday {
@@ -107,7 +108,7 @@ func (c *Calendar) SetHoliday(date string) {
 
 func (c *Calendar) SetWorkday(date string) {
 	if c.IsHoliday(date) {
-		if c.cal[date]%WEEK_DAY_COUNT == W_MON_FRI {
+		if c.cal[date]%COUNT_WEEK_DAY == W_MON_FRI {
 			delete(c.cal, date)
 		} else {
 			c.SetDateKind(date, DK_DAYOFF)
@@ -117,7 +118,7 @@ func (c *Calendar) SetWorkday(date string) {
 
 func (c *Calendar) SetDateKind(date string, dk DateKind) uint8 {
 	if val, ok := c.cal[date]; ok {
-		c.cal[date] = val%WEEK_DAY_COUNT + dk
+		c.cal[date] = val%COUNT_WEEK_DAY + dk
 		return c.cal[date]
 	} else if dk > DK_DAY {
 		c.cal[date] = W_MON_FRI + dk
@@ -145,7 +146,7 @@ func (c *Calendar) GetHolidays(start, end string, exclude_end bool) (holidays []
 		endtime = endtime.Add(time.Hour * 24)
 	}
 	for dt.Before(endtime) {
-		date := dt.Format(DATE_LAYOUT)
+		date := dt.Format(LAYOUT_DATE)
 		if c.IsHoliday(date) {
 			holidays = append(holidays, date)
 		}
@@ -155,11 +156,11 @@ func (c *Calendar) GetHolidays(start, end string, exclude_end bool) (holidays []
 }
 
 func GetTimeRange(start, end string) (starttime, endtime time.Time, err error) {
-	starttime, err = time.Parse(DATE_LAYOUT, start)
+	starttime, err = time.Parse(LAYOUT_DATE, start)
 	if err != nil {
 		return
 	}
-	endtime, err = time.Parse(DATE_LAYOUT, end)
+	endtime, err = time.Parse(LAYOUT_DATE, end)
 	if err != nil {
 		return
 	}
@@ -170,7 +171,7 @@ func GetTimeRange(start, end string) (starttime, endtime time.Time, err error) {
 }
 
 func GetWeekday(date string) (time.Weekday, error) {
-	dt, err := time.Parse(DATE_LAYOUT, date)
+	dt, err := time.Parse(LAYOUT_DATE, date)
 	if err != nil {
 		return 0, err
 	}

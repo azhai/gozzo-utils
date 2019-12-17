@@ -2,39 +2,22 @@ package common
 
 import (
 	"fmt"
-	"regexp"
-	"strconv"
 	"strings"
 	"time"
 )
 
-type ConvAction func(s string) string
-
-// 找出其中的数字，不含负号和小数点
-func GetNumber(data string) int64 {
-	re := regexp.MustCompile("[0-9]+")
-	data = re.FindString(data)
-	num, err := strconv.ParseInt(data, 10, 64)
-	if err == nil {
-		return num
-	}
-	return -1
-}
-
-// 分拆为多个部分，并对每一段作处理
-func SplitPieces(text, sep string, conv ConvAction) []string {
-	pieces := strings.SplitN(text, sep, -1)
-	if conv != nil {
-		for i, p := range pieces {
-			pieces[i] = conv(p)
-		}
-	}
-	return pieces
-}
+const (
+	LAYOUT_DATETIME       = "2006-01-02 15:04:05"
+	LAYOUT_DATETIME_MILLS = "2006-01-02 15:04:05.999"
+)
 
 func ParseDate(layout, date string) (time.Time, error) {
 	loc := time.Now().Location()
 	return time.ParseInLocation(layout, date, loc)
+}
+
+func NewDate(year, month, day int) time.Time {
+	return time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.Local)
 }
 
 func ToDate(t time.Time) time.Time {
@@ -53,7 +36,7 @@ type JsonTime struct {
 }
 
 func (t JsonTime) GetLayout() string {
-	return "2006-01-02 15:04:05"
+	return LAYOUT_DATETIME
 }
 
 func (t JsonTime) MarshalJSON() ([]byte, error) {
@@ -78,5 +61,5 @@ type JsonTimeMS struct {
 }
 
 func (t JsonTimeMS) GetLayout() string {
-	return "2006-01-02 15:04:05.999"
+	return LAYOUT_DATETIME_MILLS
 }
