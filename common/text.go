@@ -119,3 +119,8 @@ func InStringList(x string, lst []string, cmp int) bool {
 	i := sort.Search(size, func(i int) bool { return lst[i] >= x })
 	return i < size && StringMatch(x, lst[i], cmp)
 }
+
+// 是否在字符串列表中，比较方式是有任何一个开头符合
+func StartStringList(x string, lst []string) bool {
+	return InStringList(x, lst, CMP_STRING_STARTSWITH)
+}
