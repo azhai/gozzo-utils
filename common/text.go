@@ -124,3 +124,13 @@ func InStringList(x string, lst []string, cmp int) bool {
 func StartStringList(x string, lst []string) bool {
 	return InStringList(x, lst, CMP_STRING_STARTSWITH)
 }
+
+// lst1 是 lst2 的子集
+func IsSubsetList(lst1, lst2 []string) bool {
+	for _, x := range lst1 {
+		if !InStringList(x, lst2, CMP_STRING_EQUAL) {
+			return false
+		}
+	}
+	return true
+}

@@ -43,6 +43,14 @@ func (rh *RedisHash) GetInt(key string) (int, error) {
 	return redis.Int(rh.Get(key))
 }
 
+func (rh *RedisHash) GetInt64(key string) (int64, error) {
+	return redis.Int64(rh.Get(key))
+}
+
+func (rh *RedisHash) GetFloat(key string) (float64, error) {
+	return redis.Float64(rh.Get(key))
+}
+
 func (rh *RedisHash) GetAll() (interface{}, error) {
 	return rh.DoWith("HGETALL")
 }

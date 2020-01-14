@@ -82,10 +82,6 @@ func (rp *RedisPool) Do(cmd string, args ...interface{}) (interface{}, error) {
 	return reply, err
 }
 
-////////////////////////////////////////////////////////////
-/// 以下为接口函数                                         ///
-////////////////////////////////////////////////////////////
-
 func DoWithKey(r Redis, cmd, key string, args ...interface{}) (interface{}, error) {
 	switch len(args) {
 	case 0:
@@ -100,30 +96,17 @@ func DoWithKey(r Redis, cmd, key string, args ...interface{}) (interface{}, erro
 	}
 }
 
-func GetInt64(r Redis, key string) (int64, error) {
+////////////////////////////////////////////////////////////
+/// 以下为 string 接口函数                                 ///
+////////////////////////////////////////////////////////////
+
+func GetString(r Redis, key string) (string, error) {
 	reply, err := r.Do("GET", key)
-	return redis.Int64(reply, err)
+	return redis.String(reply, err)
 }
 
-func SetInt64(r Redis, key string, value, timeout int64) (int64, error) {
-	val := strconv.FormatInt(value, 10)
+func SetString(r Redis, key, value string, timeout int64) (string, error) {
 	ttl := strconv.FormatInt(timeout, 10)
-	reply, err := r.Do("SET", key, val, ttl)
-	return redis.Int64(reply, err)
-}
-
-// 计数增加
-func IncrInt64(r Redis, key string, offset int64) (int64, error) {
-	var (
-		err   error
-		reply interface{}
-	)
-	if offset == 0 {
-		reply, err = r.Do("GET", key)
-	} else if offset == 1 {
-		reply, err = r.Do("INCR", key)
-	} else {
-		reply, err = r.Do("INCRBY", key, offset)
-	}
-	return redis.Int64(reply, err)
+	reply, err := r.Do("SETEX", key, ttl, value)
+	return redis.String(reply, err)
 }
