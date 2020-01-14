@@ -1,8 +1,7 @@
 package rdspool
 
 import (
-	"strconv"
-
+	"github.com/azhai/gozzo-utils/common"
 	"github.com/gomodule/redigo/redis"
 )
 
@@ -82,7 +81,12 @@ func (rp *RedisPool) Do(cmd string, args ...interface{}) (interface{}, error) {
 	return reply, err
 }
 
-func DoWithKey(r Redis, cmd, key string, args ...interface{}) (interface{}, error) {
+////////////////////////////////////////////////////////////
+/// 以下为接口函数                                         ///
+////////////////////////////////////////////////////////////
+
+
+func DoWith(r Redis, cmd, key string, args ...interface{}) (interface{}, error) {
 	switch len(args) {
 	case 0:
 		return r.Do(cmd, key)
@@ -96,17 +100,36 @@ func DoWithKey(r Redis, cmd, key string, args ...interface{}) (interface{}, erro
 	}
 }
 
-////////////////////////////////////////////////////////////
-/// 以下为 string 接口函数                                 ///
-////////////////////////////////////////////////////////////
-
-func GetString(r Redis, key string) (string, error) {
-	reply, err := r.Do("GET", key)
-	return redis.String(reply, err)
+// -1=无限 -2=不存在 -3=出错
+func GetTimeout(r Redis, key string) int {
+	sec, err := redis.Int(r.Do("TTL", key))
+	if err == nil {
+		return sec
+	}
+	return -3
 }
 
-func SetString(r Redis, key, value string, timeout int64) (string, error) {
-	ttl := strconv.FormatInt(timeout, 10)
-	reply, err := r.Do("SETEX", key, ttl, value)
-	return redis.String(reply, err)
+func Expire(r Redis, key string, timeout int64) (bool, error) {
+	reply, err := r.Do("EXPIRE", key, timeout)
+	return redis.Bool(reply, err)
+}
+
+func Delete(r Redis, keys ...string) (int, error) {
+	reply, err := r.Do("DEL", common.StrToList(keys)...)
+	return redis.Int(reply, err)
+}
+
+func Exists(r Redis, key string) (bool, error) {
+	reply, err := r.Do("EXISTS", key)
+	return redis.Bool(reply, err)
+}
+
+func Find(r Redis, wildcard string) ([]string, error) {
+	reply, err := r.Do("KEYS", wildcard)
+	return redis.Strings(reply, err)
+}
+
+func Rename(r Redis, old, dst string) (bool, error) {
+	reply, err := r.Do("RENAME", old, dst)
+	return redis.Bool(reply, err)
 }
