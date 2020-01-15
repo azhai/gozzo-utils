@@ -1,4 +1,4 @@
-package rdspool
+package redisw
 
 import (
 	"testing"
@@ -7,20 +7,20 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func GetRedis() Redis {
-	return NewRedisPool("127.0.0.1:6379", "", 0)
+func GetRedis() *RedisWrapper {
+	return NewRedisPool(ConnParams{}, 0)
 }
 
 func TestInt(t *testing.T) {
 	name := "test:a"
 	r := GetRedis()
-	SetVal(r, name, 39, 60)
-	assert.Equal(t, 60, GetTimeout(r, name))
-	a, err := GetInt(r, name)
+	r.SetVal(name, 39, 60)
+	assert.Equal(t, 60, r.GetTimeout(name))
+	a, err := r.GetInt(name)
 	assert.NoError(t, err)
 	assert.Equal(t, 39, a)
 	time.Sleep(2 * time.Second)
-	assert.Equal(t, 58, GetTimeout(r, name))
+	assert.Equal(t, 58, r.GetTimeout(name))
 }
 
 func TestHash(t *testing.T) {

@@ -1,72 +1,63 @@
-package rdspool
+package redisw
 
 import (
-	"github.com/azhai/gozzo-utils/common"
 	"github.com/gomodule/redigo/redis"
 )
 
 type RedisHash struct {
 	name    string
 	timeout int
-	Redis
+	*RedisWrapper
 }
 
-func NewRedisHash(inst Redis, name string, timeout int) *RedisHash {
-	return &RedisHash{Redis: inst, name: name, timeout: timeout}
+func NewRedisHash(r *RedisWrapper, name string, timeout int) *RedisHash {
+	return &RedisHash{RedisWrapper: r, name: name, timeout: timeout}
 }
 
-func (rh *RedisHash) DoCmd(cmd string, args ...interface{}) (interface{}, error) {
-	return DoWith(rh.Redis, cmd, rh.name, args...)
+func (rh *RedisHash) Exec(cmd string, args ...interface{}) (interface{}, error) {
+	args = append([]interface{}{rh.name}, args...)
+	return rh.RedisWrapper.Exec(cmd, args...)
 }
 
 // -1=无限 -2=不存在 -3=出错
 func (rh *RedisHash) GetTimeout() int {
-	return GetTimeout(rh.Redis, rh.name)
+	return rh.RedisWrapper.GetTimeout(rh.name)
 }
 
 func (rh *RedisHash) GetSize() int {
-	size, _ := redis.Int(rh.DoCmd("HLEN"))
+	size, _ := redis.Int(rh.Exec("HLEN"))
 	return size
 }
 
 func (rh *RedisHash) GetKeys() []string {
-	keys, _ := redis.Strings(rh.DoCmd("HKEYS"))
+	keys, _ := redis.Strings(rh.Exec("HKEYS"))
 	return keys
 }
 
 func (rh *RedisHash) Delete(keys ...string) (int, error) {
-	reply, err := rh.DoCmd("HDEL", common.StrToList(keys)...)
+	reply, err := rh.Exec("HDEL", StrToList(keys)...)
 	return redis.Int(reply, err)
 }
 
 func (rh *RedisHash) Exists(key string) (bool, error) {
-	return redis.Bool(rh.DoCmd("HEXISTS", key))
+	return redis.Bool(rh.Exec("HEXISTS", key))
 }
 
 func (rh *RedisHash) SetNX(key string, value interface{}) (int, error) {
-	affects, err := redis.Int(rh.DoCmd("HSETNX", key, value))
+	affects, err := redis.Int(rh.Exec("HSETNX", key, value))
 	if affects == 1 {
-		rh.DoCmd("EXPIRE", rh.timeout)
+		rh.Exec("EXPIRE", rh.timeout)
 	}
 	return affects, err
 }
 
 func (rh *RedisHash) SetVal(key string, value interface{}) (int, error) {
-	defer rh.DoCmd("EXPIRE", rh.timeout)
-	return redis.Int(rh.DoCmd("HSET", key, value))
-}
-
-func (rh *RedisHash) SetMap(data Map) (bool, error) {
-	var args []interface{}
-	for key, val := range data {
-		args = append(args, key, val)
-	}
-	defer rh.DoCmd("EXPIRE", rh.timeout)
-	return redis.Bool(rh.DoCmd("HMSET", args...))
+	defer rh.Exec("EXPIRE", rh.timeout)
+	return redis.Int(rh.Exec("HSET", key, value))
 }
 
 func (rh *RedisHash) GetVal(key string) (interface{}, error) {
-	return rh.DoCmd("HGET", key)
+	return rh.Exec("HGET", key)
 }
 
 func (rh *RedisHash) GetString(key string) (string, error) {
@@ -87,27 +78,15 @@ func (rh *RedisHash) GetInt64(key string) (int64, error) {
 }
 
 func (rh *RedisHash) IncrInt64(key string, offset int64) (int64, error) {
-	return redis.Int64(rh.DoCmd("HINCRBY", key, offset))
+	return redis.Int64(rh.Exec("HINCRBY", key, offset))
 }
 
 func (rh *RedisHash) GetFloat(key string) (float64, error) {
 	return redis.Float64(rh.GetVal(key))
 }
 
-func (rh *RedisHash) GetMap(keys ...string) (interface{}, error) {
-	return rh.DoCmd("HMGET", common.StrToList(keys)...)
-}
-
-func (rh *RedisHash) GetMapString(keys ...string) (map[string]string, error) {
-	return redis.StringMap(rh.GetMap(keys...))
-}
-
-func (rh *RedisHash) GetMapInt(keys ...string) (map[string]int, error) {
-	return redis.IntMap(rh.GetMap(keys...))
-}
-
 func (rh *RedisHash) GetAll() (interface{}, error) {
-	return rh.DoCmd("HGETALL")
+	return rh.Exec("HGETALL")
 }
 
 func (rh *RedisHash) GetAllString() (map[string]string, error) {
