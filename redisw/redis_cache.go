@@ -107,24 +107,28 @@ func (rh *RedisHash) GetMapInt(keys ...string) (map[string]int, error) {
 /// redis string 和 hash 协作的方法                        ///
 ////////////////////////////////////////////////////////////
 
-func (rh *RedisHash) SetMapJson(data map[string]CacheData) (bool, error) {
+func (rh *RedisHash) SetMapJson(data Map) (bool, error) {
 	summary, details := make(Map), make(Map)
-	for key, obj := range data {
-		id := obj.GetCacheId()
-		val, err := json.Marshal(obj)
-		if id != "" && err == nil {
-			summary[key] = id
-			details[id] = val
+	for key, val := range data {
+		if obj, ok := val.(CacheData); ok {
+			id := obj.GetCacheId()
+			val, err := json.Marshal(val)
+			if id != "" && err == nil {
+				summary[key] = id
+				details[id] = val
+			}
+		} else {
+			summary[key] = val
 		}
 	}
 	ok, err := rh.RedisWrapper.SetMap(details)
-	if ok && err == nil {
+	//if ok && err == nil {
 		ok, err = rh.SetMap(summary)
-	}
+	//}
 	return ok, err
 }
 
-func (rh *RedisHash) GetMapJson(data map[string]CacheData) error {
+func (rh *RedisHash) GetMapJson(data Map) error {
 	var keys []string
 	for key := range data {
 		keys = append(keys, key)
@@ -133,8 +137,12 @@ func (rh *RedisHash) GetMapJson(data map[string]CacheData) error {
 	if err != nil {
 		return err
 	}
-	for key, id := range summary {
-		err = rh.RedisWrapper.GetJson(id, data[key])
+	for key, val := range summary {
+		if _, ok := data[key].(CacheData); ok {
+			err = rh.RedisWrapper.GetJson(val, data[key])
+		} else {
+			data[key] = val
+		}
 	}
 	return err
 }
