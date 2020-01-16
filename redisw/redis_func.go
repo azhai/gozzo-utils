@@ -14,9 +14,9 @@ func (r *RedisWrapper) SetPart(key string, value interface{}, offset int) (int, 
 	return redis.Int(reply, err)
 }
 
-func (r *RedisWrapper) SetVal(key string, value interface{}, timeout int64) (bool, error) {
+func (r *RedisWrapper) SetVal(key string, value interface{}, timeout int) (bool, error) {
 	reply, err := r.Exec("SETEX", key, timeout, value)
-	return redis.Bool(reply, err)
+	return ReplyBool(reply, err)
 }
 
 func (r *RedisWrapper) GetBytes(key string) ([]byte, error) {

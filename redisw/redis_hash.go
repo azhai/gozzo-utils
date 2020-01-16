@@ -19,14 +19,18 @@ func (rh *RedisHash) Exec(cmd string, args ...interface{}) (interface{}, error) 
 	return rh.RedisWrapper.Exec(cmd, args...)
 }
 
-// -1=无限 -2=不存在 -3=出错
-func (rh *RedisHash) GetTimeout() int {
-	return rh.RedisWrapper.GetTimeout(rh.name)
-}
-
 func (rh *RedisHash) GetSize() int {
 	size, _ := redis.Int(rh.Exec("HLEN"))
 	return size
+}
+
+// -1=无限 -2=不存在 -3=出错
+func (rh *RedisHash) GetTimeout(predict bool) int {
+	timeout := rh.RedisWrapper.GetTimeout(rh.name)
+	if timeout == -2 && predict { // 尚未设置，使用预定值
+		timeout = rh.timeout
+	}
+	return timeout
 }
 
 func (rh *RedisHash) GetKeys() []string {
@@ -35,12 +39,20 @@ func (rh *RedisHash) GetKeys() []string {
 }
 
 func (rh *RedisHash) Delete(keys ...string) (int, error) {
+	if len(keys) == 0 {
+		return 0, KeysEmptyError
+	}
 	reply, err := rh.Exec("HDEL", StrToList(keys)...)
 	return redis.Int(reply, err)
 }
 
+func (rh *RedisHash) DeleteAll() (bool, error) {
+	affects, err := rh.RedisWrapper.Delete(rh.name)
+	return affects > 0, err
+}
+
 func (rh *RedisHash) Exists(key string) (bool, error) {
-	return redis.Bool(rh.Exec("HEXISTS", key))
+	return ReplyBool(rh.Exec("HEXISTS", key))
 }
 
 func (rh *RedisHash) SetNX(key string, value interface{}) (int, error) {

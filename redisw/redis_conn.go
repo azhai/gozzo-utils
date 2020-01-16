@@ -1,6 +1,7 @@
 package redisw
 
 import (
+	"fmt"
 	"strconv"
 	"time"
 
@@ -9,8 +10,22 @@ import (
 	"github.com/gomodule/redigo/redisx"
 )
 
-var StrToList = common.StrToList // 将字符串数组转为一般数组
+var (
+	StrToList = common.StrToList // 将字符串数组转为一般数组
+	KeysEmptyError = fmt.Errorf("The param which named 'keys' must not empty !")
+)
 
+// redigo没有将应答中的OK转为bool值(2020-01-16)
+func ReplyBool(reply interface{}, err error) (bool, error) {
+	if err != nil {
+		return false, err
+	}
+	var answer string
+	answer, err = redis.String(reply, err)
+	return answer == "OK", err
+}
+
+// 用:号连接两个部分，如果后一部分也存在的话
 func ConcatWith(master, slave string) string {
 	if slave != "" {
 		master += ":" + slave
@@ -115,6 +130,11 @@ func (r *RedisWrapper) Exec(cmd string, args ...interface{}) (interface{}, error
 	return reply, err
 }
 
+func (r *RedisWrapper) GetSize() int {
+	size, _ := redis.Int(r.Exec("DBSIZE"))
+	return size
+}
+
 // -1=无限 -2=不存在 -3=出错
 func (r *RedisWrapper) GetTimeout(key string) int {
 	sec, err := redis.Int(r.Exec("TTL", key))
@@ -124,27 +144,31 @@ func (r *RedisWrapper) GetTimeout(key string) int {
 	return -3
 }
 
-func (r *RedisWrapper) Expire(key string, timeout int64) (bool, error) {
+func (r *RedisWrapper) Expire(key string, timeout int) (bool, error) {
 	reply, err := r.Exec("EXPIRE", key, timeout)
-	return redis.Bool(reply, err)
+	return ReplyBool(reply, err)
 }
 
 func (r *RedisWrapper) Delete(keys ...string) (int, error) {
+	if len(keys) == 0 {
+		return 0, KeysEmptyError
+	}
 	reply, err := r.Exec("DEL", StrToList(keys)...)
 	return redis.Int(reply, err)
 }
 
+func (r *RedisWrapper) DeleteAll() (bool, error) {
+	return ReplyBool(r.Exec("FLUSHDB"))
+}
+
 func (r *RedisWrapper) Exists(key string) (bool, error) {
-	reply, err := r.Exec("EXISTS", key)
-	return redis.Bool(reply, err)
+	return ReplyBool(r.Exec("EXISTS", key))
 }
 
 func (r *RedisWrapper) Find(wildcard string) ([]string, error) {
-	reply, err := r.Exec("KEYS", wildcard)
-	return redis.Strings(reply, err)
+	return redis.Strings(r.Exec("KEYS", wildcard))
 }
 
 func (r *RedisWrapper) Rename(old, dst string) (bool, error) {
-	reply, err := r.Exec("RENAME", old, dst)
-	return redis.Bool(reply, err)
+	return ReplyBool(r.Exec("RENAME", old, dst))
 }
