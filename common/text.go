@@ -46,7 +46,7 @@ func SplitPieces(text, sep string, conv ConvAction) []string {
 // 删除所有空白，包括中间的
 func RemoveSpaces(s string) string {
 	subs := map[string]string{
-		" ":"", "\n":"", "\r":"", "\t":"", "\v":"", "\f":"",
+		" ": "", "\n": "", "\r": "", "\t": "", "\v": "", "\f": "",
 	}
 	return ReplaceWith(s, subs)
 }

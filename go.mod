@@ -20,14 +20,15 @@ require (
 	github.com/lib/pq v1.3.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/streadway/amqp v0.0.0-20200108173154-1c71cc93ed71
+	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/stretchr/testify v1.4.0
 	github.com/ziutek/mymysql v1.5.4 // indirect
 	go.uber.org/atomic v1.5.1 // indirect
 	go.uber.org/multierr v1.4.0 // indirect
 	go.uber.org/zap v1.13.0
 	golang.org/x/lint v0.0.0-20191125180803-fdd1cda4f05f // indirect
-	golang.org/x/sys v0.0.0-20200113162924-86b910548bc1 // indirect
-	golang.org/x/tools v0.0.0-20200114235610-7ae403b6b589 // indirect
+	golang.org/x/sys v0.0.0-20200116001909-b77594299b42 // indirect
+	golang.org/x/tools v0.0.0-20200116062425-473961ec044c // indirect
 	gopkg.in/yaml.v2 v2.2.7 // indirect
 )
 

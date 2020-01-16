@@ -45,16 +45,16 @@ type Profile struct {
 func NewProfile(id, age int, name RealName, addr Address) *Profile {
 	name.ID, addr.ID = id, id
 	return &Profile{
-		Age: age,
+		Age:      age,
 		RealName: &name,
-		Address: &addr,
+		Address:  &addr,
 	}
 }
 
 type RealName struct {
-	ID int `json:"-"`
+	ID        int    `json:"-"`
 	FirstName string `json:"first"`
-	LastName string `json:"last"`
+	LastName  string `json:"last"`
 }
 
 func (n RealName) GetCacheId() string {
@@ -62,12 +62,12 @@ func (n RealName) GetCacheId() string {
 }
 
 type Address struct {
-	ID int `json:"-"`
+	ID       int    `json:"-"`
 	Province string `json:"province"`
-	City string `json:"city"`
-	Street string `json:"street"`
+	City     string `json:"city"`
+	Street   string `json:"street"`
 	Building string `json:"building"`
-	Room string `json:"room"`
+	Room     string `json:"room"`
 }
 
 func (a Address) GetCacheId() string {
@@ -77,10 +77,10 @@ func (a Address) GetCacheId() string {
 var ryan = NewProfile(5, 40,
 	RealName{
 		FirstName: "Ryan",
-		LastName: "Liu",
+		LastName:  "Liu",
 	},
 	Address{
-		City: "深圳",
+		City:   "深圳",
 		Street: "坂田",
 	})
 
@@ -101,7 +101,7 @@ func TestJson(t *testing.T) {
 
 func TestCache(t *testing.T) {
 	data := Map{
-		"age": ryan.Age,
+		"age":  ryan.Age,
 		"name": ryan.RealName,
 		"addr": ryan.Address,
 	}
@@ -111,7 +111,7 @@ func TestCache(t *testing.T) {
 	assert.NoError(t, err)
 	data["age"] = 14
 	data["addr"] = &Address{
-		City: "东莞",
+		City:   "东莞",
 		Street: "松山湖",
 	}
 	t.Logf("before: %#v\n", data)

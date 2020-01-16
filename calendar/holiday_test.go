@@ -65,7 +65,6 @@ func TestMidAutumn(t *testing.T) {
 	}
 }
 
-
 func TestGetHolidays(t *testing.T) {
 	cal := NewYearCalendar(2019, W_FAKE_SAT)
 	assert.Equal(t, cal.Start.Month(), time.January)

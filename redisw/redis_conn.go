@@ -10,8 +10,16 @@ import (
 	"github.com/gomodule/redigo/redisx"
 )
 
+const (
+	REDIS_DEFAULT_PORT         = 6379
+	REDIS_DEFAULT_IDLE_CONN    = 3   // 最大空闲连接数
+	REDIS_DEFAULT_IDLE_TIMEOUT = 240 // 最大空闲时长，单位：秒
+	REDIS_DEFAULT_EXEC_RETRY   = 3   // 重试次数
+	REDIS_DEFAULT_READ_TIMEOUT = 7   // 命令最大执行时长，单位：秒
+)
+
 var (
-	StrToList = common.StrToList // 将字符串数组转为一般数组
+	StrToList      = common.StrToList // 将字符串数组转为一般数组
 	KeysEmptyError = fmt.Errorf("The param which named 'keys' must not empty !")
 )
 
@@ -65,15 +73,16 @@ type RedisContainer interface {
 
 // Redis
 type RedisWrapper struct {
-	MaxIdle     int
-	MaxExecTime int // 命令最大执行时长
+	MaxIdleConn int // 最大空闲连接数
+	MaxIdleTime int // 最大空闲时长
 	RetryTimes  int // 重试次数
+	MaxReadTime int // 命令最大执行时长（不算连接部分）
 	RedisContainer
 }
 
 func DialByParams(params ConnParams) (redis.Conn, error) {
 	var opts []redis.DialOption
-	addr := params.GetAddr("127.0.0.1", 6379)
+	addr := params.GetAddr("127.0.0.1", REDIS_DEFAULT_PORT)
 	if params.Password != "" {
 		opts = append(opts, redis.DialPassword(params.Password))
 	}
@@ -84,14 +93,22 @@ func DialByParams(params ConnParams) (redis.Conn, error) {
 }
 
 func NewRedisWrapper() *RedisWrapper {
-	return &RedisWrapper{MaxIdle: 0, MaxExecTime: 5, RetryTimes: 3}
+	return &RedisWrapper{
+		MaxIdleConn: REDIS_DEFAULT_IDLE_CONN,
+		MaxIdleTime: REDIS_DEFAULT_IDLE_TIMEOUT,
+		RetryTimes:  REDIS_DEFAULT_EXEC_RETRY,
+		MaxReadTime: REDIS_DEFAULT_READ_TIMEOUT,
+	}
 }
 
 func NewRedisPool(params ConnParams, maxIdle int) *RedisWrapper {
 	r := NewRedisWrapper()
-	r.MaxIdle = maxIdle
-	dial := func()(redis.Conn, error) { return DialByParams(params) }
-	r.RedisContainer = &redis.Pool{Dial: dial, MaxIdle: r.MaxIdle}
+	if maxIdle >= 0 {
+		r.MaxIdleConn = maxIdle
+	}
+	dial := func() (redis.Conn, error) { return DialByParams(params) }
+	timeout := time.Second * time.Duration(r.MaxIdleTime)
+	r.RedisContainer = &redis.Pool{Dial: dial, MaxIdle: r.MaxIdleConn, IdleTimeout: timeout}
 	return r
 }
 
@@ -102,10 +119,10 @@ func NewRedisConnMux(params ConnParams) *RedisWrapper {
 	return r
 }
 
-// 单命令最大执行时长
-func (r *RedisWrapper) GetMaxExecDuration() time.Duration {
-	if r.MaxExecTime > 0 {
-		return time.Second * time.Duration(r.MaxExecTime)
+// 单命令最大执行时长（不算连接部分）
+func (r *RedisWrapper) GetMaxReadDuration() time.Duration {
+	if r.MaxReadTime > 0 {
+		return time.Second * time.Duration(r.MaxReadTime)
 	}
 	return 0
 }
@@ -116,10 +133,10 @@ func (r *RedisWrapper) Exec(cmd string, args ...interface{}) (interface{}, error
 		err   error
 		reply interface{}
 	)
-	med := r.GetMaxExecDuration()
+	mrd := r.GetMaxReadDuration()
 	for i := 0; i < r.RetryTimes; i++ {
-		if med > 0 {
-			reply, err = redis.DoWithTimeout(r.Get(), med, cmd, args...)
+		if mrd > 0 {
+			reply, err = redis.DoWithTimeout(r.Get(), mrd, cmd, args...)
 		} else {
 			reply, err = r.Get().Do(cmd, args...)
 		}

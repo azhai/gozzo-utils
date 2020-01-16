@@ -88,7 +88,7 @@ func (d *Decimal) ChangePrecision(offset int) {
 func (d *Decimal) Format() string {
 	// 多加一个前置0，兼容无整数部分的情况
 	size := int(d.Precision) + 1
-	tpl := "%0"+strconv.Itoa(size)+"d"
+	tpl := "%0" + strconv.Itoa(size) + "d"
 	result := fmt.Sprintf(tpl, d.Value)
 	if sep := len(result) + 1 - size; sep > 0 {
 		result = result[:sep] + "." + result[sep:]

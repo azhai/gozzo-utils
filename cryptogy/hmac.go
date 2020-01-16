@@ -47,7 +47,7 @@ func (h MacHash) Verify(text, hashed string) bool {
 
 // 产生随机salt
 func RandSalt(size int) string {
-	buf := make([]byte, (size + 1)/2)
+	buf := make([]byte, (size+1)/2)
 	if _, err := rand.Read(buf); err == nil {
 		return hex.EncodeToString(buf)[:size]
 	}

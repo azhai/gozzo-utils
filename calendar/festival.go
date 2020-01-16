@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	NewYear   = NewSolarFestival(1, 1, "元旦")
+	NewYear = NewSolarFestival(1, 1, "元旦")
 	// 春节放假的第一天实际上是除夕
 	SpringDay = NewLunarFestivalCount("春节", 3).AddAnnals(2016,
 		"2016-02-07", "2017-01-27", "2018-02-15", "2019-02-04", "2020-01-24")

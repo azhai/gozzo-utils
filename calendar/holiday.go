@@ -64,9 +64,9 @@ func NewYearCalendar(year int, saturday_as Weekday) *Calendar {
 	if year <= 0 {
 		year = time.Now().Year()
 	}
-	c := &Calendar {
+	c := &Calendar{
 		Start: common.NewDate(year, 1, 1),
-		End: common.NewDate(year, 12, 31),
+		End:   common.NewDate(year, 12, 31),
 	}
 	c.Init(saturday_as)
 	return c
