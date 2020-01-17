@@ -2,6 +2,7 @@ package redisw
 
 import (
 	"encoding/json"
+	"strings"
 
 	"github.com/gomodule/redigo/redis"
 )
@@ -16,6 +17,21 @@ type Map = map[string]interface{}
 
 func NewMap() Map {
 	return make(Map)
+}
+
+func Map2Args(data Map, asJson bool) []interface{} {
+	var args []interface{}
+	for key, val := range data {
+		if asJson {
+			value, err := json.Marshal(val)
+			if err == nil {
+				args = append(args, key, value)
+			}
+		} else if val != nil {
+			args = append(args, key, val)
+		}
+	}
+	return args
 }
 
 func ExecMap(exec ExecMulti, keys ...string) (data Map, err error) {
@@ -103,11 +119,8 @@ func (r *RedisWrapper) SaveJson(key string, obj interface{}, timeout int) (bool,
 	return r.SetVal(key, value, timeout)
 }
 
-func (r *RedisWrapper) SaveMap(data Map) (bool, error) {
-	var args []interface{}
-	for key, val := range data {
-		args = append(args, key, val)
-	}
+func (r *RedisWrapper) SaveMap(data Map, asJson bool) (bool, error) {
+	args := Map2Args(data, asJson)
 	reply, err := r.Exec("MSET", args...)
 	return ReplyBool(reply, err)
 }
@@ -144,11 +157,8 @@ func (r *RedisWrapper) LoadMapInt(keys ...string) (map[string]int, error) {
 /// redis hash 的方法                                     ///
 ////////////////////////////////////////////////////////////
 
-func (rh *RedisHash) SaveMap(data Map) (bool, error) {
-	var args []interface{}
-	for key, val := range data {
-		args = append(args, key, val)
-	}
+func (rh *RedisHash) SaveMap(data Map, asJson bool) (bool, error) {
+	args := Map2Args(data, asJson)
 	defer rh.Exec("EXPIRE", rh.timeout)
 	return ReplyBool(rh.Exec("HMSET", args...))
 }
@@ -178,13 +188,16 @@ func (rh *RedisHash) LoadMapInt(keys ...string) (map[string]int, error) {
 ////////////////////////////////////////////////////////////
 
 // 基本类型保存于自身，CacheData数据关联保存为Json
-func (rh *RedisHash) SaveMapData(data Map) (ok bool, err error) {
+func (rh *RedisHash) SaveForeignData(data Map) (ok bool, err error) {
 	summary, timeout := NewMap(), rh.GetTimeout(true)
 	for key, val := range data {
+		if val == nil {
+			continue
+		}
 		if obj, ok := val.(CacheData); ok {
 			id := obj.GetCacheId()
 			if id != "" && err == nil {
-				ok, err = rh.SaveJson(id, val, timeout)
+				ok, err = rh.RedisWrapper.SaveJson(id, val, timeout)
 				summary[key] = id
 			}
 		} else {
@@ -192,26 +205,71 @@ func (rh *RedisHash) SaveMapData(data Map) (ok bool, err error) {
 		}
 	}
 	if err == nil {
-		ok, err = rh.SaveMap(summary)
+		ok, err = rh.SaveMap(summary, false)
 	}
 	return
 }
 
-// 只能得到CacheData数据的Map，基本类型需要自己加载
-func (rh *RedisHash) LoadMapJson(data Map) error {
+func (rh *RedisHash) LoadSummary(data Map) (map[string]string, error) {
 	var keys []string
 	for key, val := range data {
-		if _, ok := val.(CacheData); !ok {
-			continue
+		if val == nil {
+			keys = append(keys, key)
+		} else if _, ok := val.(CacheData); ok {
+			keys = append(keys, key)
 		}
-		keys = append(keys, key)
 	}
-	summary, err := rh.LoadMapString(keys...)
-	if err != nil {
+	return rh.LoadMapString(keys...)
+}
+
+// 只能得到CacheData数据的Map，基本类型需要自己加载
+func (rh *RedisHash) LoadForeignJson(data Map) (err error) {
+	var summary map[string]string
+	if summary, err = rh.LoadSummary(data); err != nil {
 		return err
 	}
 	for key, val := range summary {
 		err = rh.RedisWrapper.LoadJson(val, data[key])
 	}
 	return err
+}
+
+func (rh *RedisHash) LoadForeignString(keys ...string) (result map[string]string, err error) {
+	var summary, foreigns map[string]string
+	if summary, err = rh.LoadMapString(keys...); err != nil {
+		return
+	}
+	var ids []string
+	for _, id := range summary {
+		ids = append(ids, id)
+	}
+	if foreigns, err = rh.RedisWrapper.LoadMapString(ids...); err != nil {
+		return
+	}
+	result = make(map[string]string)
+	for key, id := range summary {
+		if val, ok := foreigns[id]; ok {
+			result[key] = val
+		}
+	}
+	return
+}
+
+// 对list、dict或string的json，去掉两边括号或引号取中间部分
+// 用于快速拼接json，免除判断类型和空值，如 fmt.Sprintf("{%s}", GetJsonContent(json))
+func GetJsonContent(data string) string {
+	data = strings.TrimSpace(data)
+	if len(data) < 2 {
+		return ""
+	}
+	if strings.HasPrefix(data, "{") && strings.HasSuffix(data, "}") {
+		return data[1 : len(data)-1]
+	}
+	if strings.HasPrefix(data, "[") && strings.HasSuffix(data, "]") {
+		return data[1 : len(data)-1]
+	}
+	if strings.HasPrefix(data, "\"") && strings.HasSuffix(data, "\"") {
+		return data[1 : len(data)-1]
+	}
+	return ""
 }

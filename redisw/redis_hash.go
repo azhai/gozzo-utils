@@ -38,6 +38,10 @@ func (rh *RedisHash) GetKeys() []string {
 	return keys
 }
 
+func (rh *RedisHash) Expire(timeout int) (bool, error) {
+	return rh.RedisWrapper.Expire(rh.name, timeout)
+}
+
 func (rh *RedisHash) Delete(keys ...string) (int, error) {
 	if len(keys) == 0 {
 		return 0, KeysEmptyError

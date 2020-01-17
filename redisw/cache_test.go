@@ -106,7 +106,7 @@ func TestCache(t *testing.T) {
 		"addr": ryan.Address,
 	}
 	rh := NewRedisHash(GetRedis(), "profile:5", 60)
-	ok, err := rh.SaveMapData(data)
+	ok, err := rh.SaveForeignData(data)
 	assert.True(t, ok)
 	assert.NoError(t, err)
 	data["age"] = 14
@@ -115,7 +115,7 @@ func TestCache(t *testing.T) {
 		Street: "松山湖",
 	}
 	t.Logf("before: %#v\n", data)
-	err = rh.LoadMapJson(data)
+	err = rh.LoadForeignJson(data)
 	var others map[string]int
 	others, err = rh.LoadMapInt("age")
 	for key, val := range others {
