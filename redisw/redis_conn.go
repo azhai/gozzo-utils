@@ -2,7 +2,6 @@ package redisw
 
 import (
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/azhai/gozzo-utils/common"
@@ -11,7 +10,6 @@ import (
 )
 
 const (
-	REDIS_DEFAULT_PORT         = 6379
 	REDIS_DEFAULT_IDLE_CONN    = 3   // 最大空闲连接数
 	REDIS_DEFAULT_IDLE_TIMEOUT = 240 // 最大空闲时长，单位：秒
 	REDIS_DEFAULT_EXEC_RETRY   = 3   // 重试次数
@@ -20,7 +18,7 @@ const (
 
 var (
 	StrToList      = common.StrToList // 将字符串数组转为一般数组
-	KeysEmptyError = fmt.Errorf("The param which named 'keys' must not empty !")
+	KeysEmptyError = fmt.Errorf("the param which named 'keys' must not empty !")
 )
 
 // redigo没有将应答中的OK转为bool值(2020-01-16)
@@ -33,37 +31,7 @@ func ReplyBool(reply interface{}, err error) (bool, error) {
 	return answer == "OK", err
 }
 
-// 用:号连接两个部分，如果后一部分也存在的话
-func ConcatWith(master, slave string) string {
-	if slave != "" {
-		master += ":" + slave
-	}
-	return master
-}
-
-// Redis连接配置
-type ConnParams struct {
-	Host     string
-	Port     int
-	Username string
-	Password string
-	Database string
-	Options  map[string]interface{}
-}
-
-func (p ConnParams) GetAddr(defaultHost string, defaultPort uint16) string {
-	if p.Host != "" {
-		defaultHost = p.Host
-	}
-	return ConcatWith(defaultHost, p.StrPort(defaultPort))
-}
-
-func (p ConnParams) StrPort(defaultPort uint16) string {
-	if p.Port > 0 {
-		return strconv.Itoa(p.Port)
-	}
-	return strconv.Itoa(int(defaultPort))
-}
+type DialFunc func() (redis.Conn, error)
 
 // Redis 容器，包括 *redis.Pool 和 *redisx.ConnMux 两个实现
 type RedisContainer interface {
@@ -80,18 +48,6 @@ type RedisWrapper struct {
 	RedisContainer
 }
 
-func DialByParams(params ConnParams) (redis.Conn, error) {
-	var opts []redis.DialOption
-	addr := params.GetAddr("127.0.0.1", REDIS_DEFAULT_PORT)
-	if params.Password != "" {
-		opts = append(opts, redis.DialPassword(params.Password))
-	}
-	if dbno, err := strconv.Atoi(params.Database); err == nil {
-		opts = append(opts, redis.DialDatabase(dbno))
-	}
-	return redis.Dial("tcp", addr, opts...)
-}
-
 func NewRedisWrapper() *RedisWrapper {
 	return &RedisWrapper{
 		MaxIdleConn: REDIS_DEFAULT_IDLE_CONN,
@@ -101,20 +57,27 @@ func NewRedisWrapper() *RedisWrapper {
 	}
 }
 
-func NewRedisPool(params ConnParams, maxIdle int) *RedisWrapper {
+func NewRedisPool(dial DialFunc, maxIdle int) *RedisWrapper {
 	r := NewRedisWrapper()
 	if maxIdle >= 0 {
 		r.MaxIdleConn = maxIdle
 	}
-	dial := func() (redis.Conn, error) { return DialByParams(params) }
 	timeout := time.Second * time.Duration(r.MaxIdleTime)
-	r.RedisContainer = &redis.Pool{Dial: dial, MaxIdle: r.MaxIdleConn, IdleTimeout: timeout}
+	r.RedisContainer = &redis.Pool{
+		Dial: dial, MaxIdle: r.MaxIdleConn, IdleTimeout: timeout,
+	}
 	return r
 }
 
-func NewRedisConnMux(params ConnParams) *RedisWrapper {
+func NewRedisPoolParams(params ConnParams, maxIdle int) *RedisWrapper {
+	dial := func() (redis.Conn, error) {
+		return DialByParams(params)
+	}
+	return NewRedisPool(dial, maxIdle)
+}
+
+func NewRedisConnMux(conn redis.Conn) *RedisWrapper {
 	r := NewRedisWrapper()
-	conn, _ := DialByParams(params)
 	r.RedisContainer = redisx.NewConnMux(conn)
 	return r
 }

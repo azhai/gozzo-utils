@@ -25,8 +25,8 @@ INSERT INTO `people_females` VALUES (4, 'Grace', 175, '1987-07-05 00:00:00');
 */
 
 var (
-	hsServer  = "192.168.2.134"
-	dbName    = "test"
+	hsServer  = "127.0.0.1"
+	dbName    = "db_test"
 	tableName = "people_females"
 	userName  = "Emily"
 )

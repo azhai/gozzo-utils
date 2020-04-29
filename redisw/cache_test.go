@@ -9,7 +9,7 @@ import (
 )
 
 func GetRedis() *RedisWrapper {
-	return NewRedisPool(ConnParams{}, 0)
+	return NewRedisPoolParams(ConnParams{}, 0)
 }
 
 func TestInt(t *testing.T) {

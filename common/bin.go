@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"unsafe"
 )
 
 /*
@@ -41,6 +42,11 @@ var Hex2Bin = func(data string) []byte {
 //字符求余转为数字
 func ToNum(c byte) uint8 {
 	return uint8((c - '0' + 100) % 10)
+}
+
+// 快速转为字符串
+func BytesToString(b []byte) string {
+	return *(*string)(unsafe.Pointer(&b))
 }
 
 //将数值或者数字转为字符串

@@ -56,6 +56,14 @@ func ReduceSpaces(s string) string {
 	return strings.Join(strings.Fields(s), " ")
 }
 
+// 用:号连接两个部分，如果后一部分也存在的话
+func ConcatWith(master, slave string) string {
+	if slave != "" {
+		master += ":" + slave
+	}
+	return master
+}
+
 // 如果本身不为空，在左右两边添加字符
 func WrapWith(s, left, right string) string {
 	if s == "" {
@@ -107,8 +115,8 @@ func StringMatch(a, b string, cmp int) bool {
 	}
 }
 
-// 是否在字符串列表中
-func InStringList(x string, lst []string, cmp int) bool {
+// 是否在字符串列表中，只适用于CMP_STRING_EQUAL和CMP_STRING_STARTSWITH
+func compareStringList(x string, lst []string, cmp int) bool {
 	size := len(lst)
 	if size == 0 {
 		return false
@@ -120,15 +128,26 @@ func InStringList(x string, lst []string, cmp int) bool {
 	return i < size && StringMatch(x, lst[i], cmp)
 }
 
-// 是否在字符串列表中，比较方式是有任何一个开头符合
-func StartStringList(x string, lst []string) bool {
-	return InStringList(x, lst, CMP_STRING_STARTSWITH)
+// 是否在字符串列表中
+func InStringList(x string, lst []string) bool {
+	return compareStringList(x, lst, CMP_STRING_EQUAL)
 }
 
-// lst1 是 lst2 的子集
-func IsSubsetList(lst1, lst2 []string) bool {
+// 是否在字符串列表中，比较方式是有任何一个开头符合
+func StartStringList(x string, lst []string) bool {
+	return compareStringList(x, lst, CMP_STRING_STARTSWITH)
+}
+
+// lst1 是否 lst2 的（真）子集
+func IsSubsetList(lst1, lst2 []string, strict bool) bool {
+	if len(lst1) > len(lst2) {
+		return false
+	}
+	if strict && len(lst1) == len(lst2) {
+		return false
+	}
 	for _, x := range lst1 {
-		if !InStringList(x, lst2, CMP_STRING_EQUAL) {
+		if !InStringList(x, lst2) {
 			return false
 		}
 	}
